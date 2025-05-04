@@ -37,7 +37,7 @@
           </ul>
   
           <!-- Buscador -->
-          <!-- <form class="d-flex me-3" @submit.prevent="$emit('search', search)">
+          <form class="d-flex me-3" @submit.prevent="$emit('search', search)">
             <input
               v-model="search"
               class="form-control me-2"
@@ -47,7 +47,7 @@
             <button class="btn btn-outline-primary" type="submit">
               <i class="bi bi-search"></i>
             </button>
-          </form> -->
+          </form>
   
           <!-- Botones derecho -->
           <ul class="navbar-nav mb-2 mb-lg-0 align-items-center">
