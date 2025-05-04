@@ -1,6 +1,6 @@
 <template>
     <Navbar @search="$emit('search',$event)" @logout="$emit('logout')"/>
-    <div class="container py-5">
+    <div>
       <router-view/>
     </div>
   </template>

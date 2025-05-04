@@ -10,9 +10,9 @@
               :class="['carousel-item', { active: i === 0 }]"
             >
               <div class="d-flex flex-column align-items-center">
-                <img :src="t.photo" class="rounded-circle mb-3" style="width:80px;height:80px;object-fit:cover;">
+                <img :src="t.image" class="rounded-circle mb-3" style="width:80px;height:80px;object-fit:cover;">
                 <blockquote class="blockquote text-center">
-                  <p class="mb-3">“{{ t.quote }}”</p>
+                  <p class="mb-3">“{{ t.text }}”</p>
                   <footer class="blockquote-footer">{{ t.name }}, {{ t.role }}</footer>
                 </blockquote>
               </div>

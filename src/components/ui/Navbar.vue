@@ -3,7 +3,13 @@
       <div class="container-fluid">
         <!-- Marca -->
         <router-link class="navbar-brand fw-bold text-primary" to="/">
-          Psicomorfosis
+          <img
+            src="/images/logo.png"
+            alt="Logo"
+            class="d-inline-block align-text-top me-2"
+            style="width: 40px; height: 40px; object-fit: cover;"
+          />
+          Hotel
         </router-link>
   
         <!-- Toggle movil -->
@@ -31,7 +37,7 @@
           </ul>
   
           <!-- Buscador -->
-          <form class="d-flex me-3" @submit.prevent="$emit('search', search)">
+          <!-- <form class="d-flex me-3" @submit.prevent="$emit('search', search)">
             <input
               v-model="search"
               class="form-control me-2"
@@ -41,7 +47,7 @@
             <button class="btn btn-outline-primary" type="submit">
               <i class="bi bi-search"></i>
             </button>
-          </form>
+          </form> -->
   
           <!-- Botones derecho -->
           <ul class="navbar-nav mb-2 mb-lg-0 align-items-center">
@@ -93,17 +99,14 @@
   import { useAuthStore } from '@/store/auth'
   
   const navItems = [
-    { to: '/app/dashboard', label: 'Dashboard' },
-    { to: '/app/team',      label: 'Team'      },
-    { to: '/app/projects',  label: 'Projects'  },
-    { to: '/app/calendar',  label: 'Calendar'  },
+    
   ]
   
   const search = ref('')
   const unread = ref(3)
   
   const auth = useAuthStore()
-  const user  = auth.user || { avatar: '/default-avatar.png' }
+  const user  = auth.user || { avatar: '/images/avatar.jpeg' }
   
   const route = useRoute()
   function isActive(path) {

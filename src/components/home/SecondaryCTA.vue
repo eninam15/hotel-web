@@ -1,6 +1,5 @@
 <template>
   <div class="position-relative">
-    <WaveDivider color="#FFD5C2" />
     <section class="py-5 text-center" style="background-color:#FFD5C2;">
       <div class="container">
         <h3 class="fw-bold mb-3">{{ text }}</h3>
@@ -9,7 +8,6 @@
         </button>
       </div>
     </section>
-    <WaveDivider flipped color="#FFD5C2" />
   </div>
 </template>
 
