@@ -9,7 +9,7 @@
             class="d-inline-block align-text-top me-2"
             style="width: 40px; height: 40px; object-fit: cover;"
           />
-          Hotel
+          HOSPEDAJE BERMETT
         </router-link>
   
         <!-- Toggle movil -->
