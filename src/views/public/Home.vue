@@ -1,7 +1,7 @@
 <template>
   <HeroCarousel :slides="heroSlides" @cta="handleCtaClick" />
 
-  <RoomsGrid :rooms="rooms" />
+  <RoomsGrid :rooms="rooms" :loading="loadingRooms" />
 
   <!-- <ServicesGrid :services="services" /> -->
 
@@ -18,7 +18,9 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue';
 import { useRouter } from "vue-router";
+import { habitacionService } from '@/services';
 import HeroCarousel from "@/components/home/HeroCarousel.vue";
 import WhyUsCards from "@/components/home/WhyUsCards.vue";
 import ServicesGrid from "@/components/home/ServicesGrid.vue";
@@ -30,119 +32,117 @@ import FooterSection from "@/components/home/FooterSection.vue";
 
 const router = useRouter();
 
-// Datos de habitaciones para mostrar en la grid
-const rooms = [
-  {
-    id: 1,
-    name: 'Habitación Estándar',
-    image: '/images/room-standard.jpeg',
-    price: 89.00,
-    size: 25,
-    capacity: 2,
-    bedType: 'Cama doble',
-    description: 'Habitación acogedora con todas las comodidades necesarias para una estancia agradable. Incluye baño privado y vistas a la ciudad.',
-    amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
-    isPopular: true,
-    isFavorite: false
-  },
-  {
-    id: 2,
-    name: 'Habitación Deluxe',
-    image: '/images/room-deluxe.jpeg',
-    price: 129.00,
-    size: 35,
-    capacity: 2,
-    bedType: 'Cama king',
-    description: 'Habitación espaciosa con vistas panorámicas. Equipada con minibar, escritorio y zona de estar. Perfecta para viajeros de negocios y placer.',
-    amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado'],
-    isPopular: false,
-    isFavorite: false
-  },
-  {
-    id: 3,
-    name: 'Suite Junior',
-    image: '/images/room-junior-suite.jpg',
-    price: 159.00,
-    size: 45,
-    capacity: 3,
-    bedType: 'Cama king + sofá cama',
-    description: 'Suite elegante con dormitorio y sala de estar separada. Ofrece un espacio perfecto para relajarse después de un día de turismo o negocios.',
-    amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado', 'Balcón'],
-    isNew: true,
-    isFavorite: false
-  },
-  {
-    id: 4,
-    name: 'Suite Ejecutiva',
-    image: '/images/room-executive-suite.jpg',
-    price: 219.00,
-    size: 60,
-    capacity: 4,
-    bedType: 'Cama king + 2 camas individuales',
-    description: 'Amplia suite con dormitorio separado, sala de estar y comedor. Ideal para familias o estadías prolongadas. Incluye servicio de mayordomo.',
-    amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado', 'Balcón', 'Vista al mar', 'Desayuno incluido', 'Servicio de habitaciones'],
-    isPopular: true,
-    isFavorite: false
-  },
-  {
-    id: 5,
-    name: 'Habitación Familiar',
-    image: '/images/room-family.jpg',
-    price: 189.00,
-    size: 50,
-    capacity: 4,
-    bedType: '2 camas dobles',
-    description: 'Habitación espaciosa diseñada para familias. Incluye zona de juegos para niños y todas las comodidades para una estancia confortable.',
-    amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Baño privado', 'Parking'],
-    isNew: false,
-    isFavorite: false
-  },
-  {
-    id: 6,
-    name: 'Habitación Accesible',
-    image: '/images/room-accessible.jpg',
-    price: 89.00,
-    size: 30,
-    capacity: 2,
-    bedType: 'Cama doble',
-    description: 'Habitación diseñada para ofrecer accesibilidad total. Cuenta con baño adaptado y todas las facilidades para una estancia cómoda.',
-    amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño adaptado', 'Parking'],
-    isNew: false,
-    isFavorite: false
+// Estados reactivos
+const rooms = ref([]);
+const loadingRooms = ref(true);
+const errorRooms = ref(null);
+
+// Cargar habitaciones al montar el componente
+onMounted(async () => {
+  await loadRooms();
+});
+
+// Función para cargar habitaciones
+async function loadRooms() {
+  try {
+    loadingRooms.value = true;
+    errorRooms.value = null;
+    
+    const response = await habitacionService.getAllHabitaciones();
+    
+    // Transformar los datos de la API al formato esperado por el componente
+    rooms.value = response.map(habitacion => ({
+      id: habitacion.id,
+      name: habitacion.nombre,
+      image: habitacion.foto ? `/storage/${habitacion.foto}` : '/images/room-default.jpg',
+      price: parseFloat(habitacion.precio),
+      size: habitacion.size || 25, // Si no hay tamaño en la BD, usar valor por defecto
+      capacity: habitacion.nro_adultos + habitacion.nro_ninos,
+      adults: habitacion.nro_adultos,
+      children: habitacion.nro_ninos,
+      bedType: habitacion.tipo_habitacion,
+      description: habitacion.descripcion || 'Habitación cómoda con todas las comodidades necesarias.',
+      amenities: habitacion.amenidades || ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
+      hotel: habitacion.hotel ? {
+        id: habitacion.hotel.id,
+        name: habitacion.hotel.nombre,
+        city: habitacion.hotel.ciudad
+      } : null,
+      // Propiedades adicionales para la UI
+      isPopular: Math.random() > 0.7, // Asignar aleatoriamente o basado en ranking
+      isFavorite: false,
+      isNew: checkIfNew(habitacion.created_at),
+      // Disponibilidad (si viene en la respuesta)
+      disponibilidades: habitacion.disponibilidades || [],
+      ofertas: habitacion.ofertas || []
+    }));
+    
+  } catch (error) {
+    console.error('Error al cargar habitaciones:', error);
+    errorRooms.value = 'No se pudieron cargar las habitaciones';
+    
+    // Mantener algunos datos de fallback si hay error
+    rooms.value = getFallbackRooms();
+  } finally {
+    loadingRooms.value = false;
   }
-];
+}
+
+// Función para verificar si una habitación es nueva (creada en los últimos 30 días)
+function checkIfNew(createdAt) {
+  if (!createdAt) return false;
+  const created = new Date(createdAt);
+  const now = new Date();
+  const diffTime = Math.abs(now - created);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays <= 30;
+}
+
+// Datos de fallback en caso de error
+function getFallbackRooms() {
+  return [
+    {
+      id: 1,
+      name: 'Habitación Estándar',
+      image: '/images/room-standard.jpeg',
+      price: 89.00,
+      size: 25,
+      capacity: 2,
+      adults: 2,
+      children: 0,
+      bedType: 'Cama doble',
+      description: 'Habitación acogedora con todas las comodidades necesarias para una estancia agradable.',
+      amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
+      isPopular: true,
+      isFavorite: false,
+      isNew: false
+    }
+  ];
+}
 
 const heroSlides = [
   {
     image: "/images/hotel-lobby.jpg",
     title: "Bienvenido a Hotel Paraíso",
     subtitle: "Disfruta de una experiencia única en un entorno de lujo y confort",
-    //ctaText: "Reserva ahora",
-    //btnVariant: "btn-primary" 
   },
   {
     image: "/images/hotel-pool.jpg",
     title: "Relájate y disfruta",
     subtitle: "Instalaciones de primera clase para una estancia inolvidable",
-    //ctaText: "Descubre más",
     alignment: "text-end",
-    //btnVariant: "btn-light"
   },
   {
     image: "/images/hotel-restaurant.jpg",
     title: "Experiencia gastronómica",
     subtitle: "Sabores exquisitos en nuestros restaurantes de clase mundial",
-    //ctaText: "Ver menús",
     alignment: "text-start",
-    //btnVariant: "btn-outline-light"
   },
   {
     image: "/images/hotel-spa.jpg",
     title: "Relájate y rejuvenece",
     subtitle: "Disfruta de nuestros servicios de spa y bienestar",
-    //ctaText: "Ver tratamientos",
     alignment: "text-center",
-    //btnVariant: "btn-secondary"
   }
 ];  
 
@@ -167,11 +167,6 @@ const testimonials = [
     rating: 5
   }
 ];
-
-// Datos para la sección de CTA secundaria
-const secondaryCtaTitle = "¿Listo para tu próxima aventura?";
-const secondaryCtaSubtitle = "Reserva ahora y obtén un descuento exclusivo.";
-const secondaryCtaText = "Reserva ahora";
 
 // Datos para la sección "Sobre nosotros"
 const aboutImage = "/images/about-us.jpg";
@@ -203,4 +198,14 @@ function goRegister() {
 function onSubscribe(email) {
   console.log(`Usuario suscrito con el correo: ${email}`);
 }
+
+// Método para refrescar habitaciones (útil para componentes padre)
+function refreshRooms() {
+  loadRooms();
+}
+
+// Exponer métodos para uso externo
+defineExpose({
+  refreshRooms
+});
 </script>

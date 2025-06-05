@@ -2,7 +2,26 @@
 <template>
   <div class="booking-page py-5">
     <div class="container">
-      <div class="row justify-content-center">
+      <!-- Loading state -->
+      <div v-if="loading" class="d-flex justify-content-center align-items-center" style="min-height: 400px;">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="error" class="row justify-content-center">
+        <div class="col-lg-8">
+          <div class="alert alert-danger text-center">
+            <h4>Error al cargar los datos</h4>
+            <p>{{ error }}</p>
+            <button @click="loadRoomData" class="btn btn-primary">Reintentar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Booking content -->
+      <div v-else class="row justify-content-center">
         <div class="col-lg-10">
           <div class="card shadow-sm mb-4">
             <div class="card-body p-4">
@@ -53,7 +72,7 @@
                     <div class="reservation-summary p-3 mb-4 bg-light rounded">
                       <div class="d-flex mb-3">
                         <img 
-                          :src="room.image" 
+                          :src="roomImage" 
                           :alt="room.name" 
                           class="img-thumbnail me-3" 
                           style="width: 100px; height: 100px; object-fit: cover;"
@@ -61,7 +80,12 @@
                         <div>
                           <h3 class="h5 mb-1">{{ room.name }}</h3>
                           <div class="small text-muted mb-1">
-                            <i class="bi bi-geo-alt me-1"></i> Piso {{ room.floor }} • Vista {{ room.view }}
+                            <i class="bi bi-geo-alt me-1"></i> 
+                            {{ room.hotel?.nombre }} • {{ room.hotel?.ciudad }}
+                          </div>
+                          <div class="small text-muted mb-1">
+                            <i class="bi bi-door-open me-1"></i>
+                            {{ room.bedType }} • {{ room.capacity }} huéspedes máx.
                           </div>
                           <div class="stars">
                             <i 
@@ -81,14 +105,14 @@
                             <div class="date-card p-2 border rounded text-center">
                               <div class="small text-muted">Check-in</div>
                               <div class="fw-bold">{{ formatDisplayDate(bookingDetails.checkIn) }}</div>
-                              <div class="small">A partir de las 14:00h</div>
+                              <div class="small">{{ formatTime(room.hotel?.hr_entrada) || '14:00' }}</div>
                             </div>
                           </div>
                           <div class="col-6">
                             <div class="date-card p-2 border rounded text-center">
                               <div class="small text-muted">Check-out</div>
                               <div class="fw-bold">{{ formatDisplayDate(bookingDetails.checkOut) }}</div>
-                              <div class="small">Hasta las 12:00h</div>
+                              <div class="small">{{ formatTime(room.hotel?.hr_salida) || '12:00' }}</div>
                             </div>
                           </div>
                         </div>
@@ -224,7 +248,7 @@
                       <div class="card-footer bg-light">
                         <div class="cancellation-policy small">
                           <i class="bi bi-info-circle me-1"></i>
-                          <strong>Política de cancelación:</strong> Cancelación gratuita hasta 48 horas antes de la fecha de llegada. Después de este período, se cobrará la primera noche.
+                          <strong>Política de cancelación:</strong> Cancelación gratuita hasta 48 horas antes de la fecha de llegada.
                         </div>
                       </div>
                     </div>
@@ -250,81 +274,28 @@
                       </div>
                     </div>
                     
-                    <!-- QR Payment Form -->
-                    <div v-if="!paymentInfo.qrGenerated" class="qr-setup-form">
+                    <!-- QR Payment Display - Mostrar directamente -->
+                    <div class="qr-payment-direct">
                       <div class="alert alert-info" role="alert">
                         <i class="bi bi-info-circle me-2"></i>
-                        Para generar tu código QR de pago, necesitamos confirmar algunos datos.
+                        Escanea el código QR para completar tu pago de forma segura.
                       </div>
-                      
-                      <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                          <label for="payerName" class="form-label">Nombre del pagador*</label>
-                          <input 
-                            type="text" 
-                            id="payerName" 
-                            v-model="paymentInfo.payerName" 
-                            class="form-control"
-                            :class="{ 'is-invalid': validationErrors.payerName }" 
-                            placeholder="Nombre completo"
-                            required
-                          >
-                          <div class="invalid-feedback">{{ validationErrors.payerName }}</div>
-                        </div>
-                        <div class="col-md-6">
-                          <label for="payerPhone" class="form-label">Teléfono del pagador*</label>
-                          <input 
-                            type="tel" 
-                            id="payerPhone" 
-                            v-model="paymentInfo.payerPhone" 
-                            class="form-control"
-                            :class="{ 'is-invalid': validationErrors.payerPhone }" 
-                            placeholder="Ej: +591 70123456"
-                            required
-                          >
-                          <div class="invalid-feedback">{{ validationErrors.payerPhone }}</div>
-                        </div>
-                      </div>
-                      
-                      <div class="mb-4">
-                        <label for="paymentMethod" class="form-label">Método de pago preferido*</label>
-                        <select 
-                          id="paymentMethod" 
-                          v-model="paymentInfo.preferredMethod" 
-                          class="form-select"
-                          :class="{ 'is-invalid': validationErrors.preferredMethod }" 
-                          required
-                        >
-                          <option value="">Seleccionar método</option>
-                          <option value="banco_union">Banco Unión</option>
-                          <option value="banco_sol">Banco Sol</option>
-                          <option value="bcp">Banco de Crédito</option>
-                          <option value="bnb">Banco Nacional de Bolivia</option>
-                          <option value="tigo_money">Tigo Money</option>
-                          <option value="simple">Simple</option>
-                        </select>
-                        <div class="invalid-feedback">{{ validationErrors.preferredMethod }}</div>
-                      </div>
-                      
-                      <div class="d-flex justify-content-between mt-4">
-                        <button type="button" @click="prevStep" class="btn btn-outline-secondary">
-                          Volver
-                        </button>
-                        <button type="button" @click="generateQR" class="btn btn-primary px-4">
-                          <i class="bi bi-qr-code me-1"></i>
-                          Generar código QR
-                        </button>
-                      </div>
-                    </div>
                     
-                    <!-- QR Code Display -->
-                    <div v-else class="qr-payment-display">
                       <div class="qr-container text-center p-4 mb-4">
                         <h3 class="h5 mb-3">Escanea este código QR para pagar</h3>
                         
-                        <!-- QR Code placeholder - en una app real aquí iría el QR generado -->
-                        <div class="qr-code-placeholder mx-auto mb-3">
-                          <i class="bi bi-qr-code" style="font-size: 12rem; color: #333;"></i>
+                        <!-- QR Code image example -->
+                        <div class="qr-code-display mx-auto mb-3">
+                          <img 
+                            src="/images/qr-payment-example.png" 
+                            alt="Código QR de pago"
+                            class="qr-code-image"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'"
+                          >
+                          <!-- Fallback QR icon if image not found -->
+                          <div class="qr-code-placeholder" style="display: none;">
+                            <i class="bi bi-qr-code" style="font-size: 12rem; color: #333;"></i>
+                          </div>
                         </div>
                         
                         <div class="payment-details-card p-3 bg-light rounded mb-3">
@@ -342,17 +313,23 @@
                               Reserva habitación
                             </div>
                             <div class="col-6 text-start">
-                              <strong>Referencia:</strong>
+                              <strong>Cliente:</strong>
                             </div>
                             <div class="col-6 text-end">
-                              {{ paymentInfo.qrReference }}
+                              {{ guestInfo.firstName }} {{ guestInfo.lastName }}
+                            </div>
+                            <div class="col-6 text-start">
+                              <strong>Email:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                              {{ guestInfo.email }}
                             </div>
                           </div>
                         </div>
                         
-                        <div class="alert alert-warning small" role="alert">
-                          <i class="bi bi-clock me-1"></i>
-                          Este código QR expira en <strong>{{ formatTime(qrTimeLeft) }}</strong>
+                        <div class="alert alert-success small" role="alert">
+                          <i class="bi bi-shield-check me-1"></i>
+                          Pago 100% seguro. Todos los bancos aceptados.
                         </div>
                       </div>
                       
@@ -368,42 +345,24 @@
                       </div>
                       
                       <div class="payment-status-check text-center mb-4">
-                        <div v-if="paymentInfo.status === 'pending'" class="status-pending">
-                          <div class="spinner-border text-primary me-2" role="status">
-                            <span class="visually-hidden">Verificando pago...</span>
-                          </div>
-                          <span>Esperando confirmación del pago...</span>
-                        </div>
-                        
-                        <div v-else-if="paymentInfo.status === 'completed'" class="status-completed text-success">
+                        <div v-if="paymentInfo.status === 'completed'" class="status-completed text-success">
                           <i class="bi bi-check-circle me-2"></i>
                           <span>¡Pago confirmado!</span>
-                        </div>
-                        
-                        <div v-else-if="paymentInfo.status === 'failed'" class="status-failed text-danger">
-                          <i class="bi bi-x-circle me-2"></i>
-                          <span>Error en el pago. Por favor intenta nuevamente.</span>
                         </div>
                       </div>
                       
                       <div class="d-flex justify-content-between mt-4">
-                        <button 
-                          type="button" 
-                          @click="regenerateQR" 
-                          class="btn btn-outline-primary"
-                          :disabled="paymentInfo.status === 'completed'"
-                        >
-                          <i class="bi bi-arrow-clockwise me-1"></i>
-                          Generar nuevo QR
+                        <button type="button" @click="prevStep" class="btn btn-outline-secondary">
+                          <i class="bi bi-arrow-left me-1"></i>
+                          Volver
                         </button>
                         <button 
                           type="button" 
-                          @click="checkPaymentStatus" 
+                          @click="proceedWithPayment" 
                           class="btn btn-primary px-4"
-                          :disabled="paymentInfo.status === 'completed'"
                         >
-                          <i class="bi bi-arrow-clockwise me-1"></i>
-                          Verificar pago
+                          <i class="bi bi-check-circle me-1"></i>
+                          He realizado el pago
                         </button>
                       </div>
                     </div>
@@ -458,8 +417,8 @@
                   <p class="lead mb-4">Tu reserva se ha completado con éxito. Hemos enviado los detalles a tu correo electrónico.</p>
                   
                   <div class="booking-reference p-3 bg-light rounded mb-4">
-                    <div class="fw-bold fs-5 mb-1">Referencia de reserva</div>
-                    <div class="booking-code fs-4">{{ bookingReference }}</div>
+                    <div class="fw-bold fs-5 mb-1">Número de reserva</div>
+                    <div class="booking-code fs-4">{{ createdReserva.nro_reserva }}</div>
                   </div>
                   
                   <div class="row justify-content-center">
@@ -470,29 +429,31 @@
                             <div class="col-md-6 mb-3 mb-md-0">
                               <div class="fw-bold mb-1">Fecha de check-in</div>
                               <div>{{ formatDisplayDate(bookingDetails.checkIn) }}</div>
-                              <div class="small text-muted">A partir de las 14:00h</div>
+                              <div class="small text-muted">{{ formatTime(room.hotel?.hr_entrada) || '14:00' }}</div>
                             </div>
                             <div class="col-md-6">
                               <div class="fw-bold mb-1">Fecha de check-out</div>
                               <div>{{ formatDisplayDate(bookingDetails.checkOut) }}</div>
-                              <div class="small text-muted">Hasta las 12:00h</div>
+                              <div class="small text-muted">{{ formatTime(room.hotel?.hr_salida) || '12:00' }}</div>
                             </div>
                           </div>
                           
                           <div class="mb-3">
                             <div class="fw-bold mb-1">Huésped principal</div>
                             <div>{{ guestInfo.firstName }} {{ guestInfo.lastName }}</div>
+                            <div class="small text-muted">{{ guestInfo.email }}</div>
                           </div>
                           
                           <div class="room-details-card d-flex p-2 bg-light rounded">
                             <img 
-                              :src="room.image" 
+                              :src="roomImage" 
                               :alt="room.name" 
                               class="img-thumbnail me-3" 
                               style="width: 80px; height: 80px; object-fit: cover;"
                             >
                             <div>
                               <div class="fw-bold">{{ room.name }}</div>
+                              <div class="small text-muted">{{ room.hotel?.nombre }}</div>
                               <div class="small text-muted">{{ bookingDetails.guests }} huéspedes • {{ nightCount }} noche{{ nightCount > 1 ? 's' : '' }}</div>
                               <div class="price mt-1">{{ formatPrice(getTotalAmount()) }}</div>
                             </div>
@@ -569,6 +530,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
+import { habitacionService, reservaService } from '@/services';
 
 const route = useRoute();
 const router = useRouter();
@@ -576,12 +538,17 @@ const auth = useAuthStore();
 
 // State
 const currentStep = ref(1);
+const loading = ref(true);
+const error = ref(null);
 const room = ref({});
+const createdReserva = ref({});
+
 const bookingDetails = ref({
   roomId: parseInt(route.query.roomId) || 0,
   checkIn: route.query.checkIn || '',
   checkOut: route.query.checkOut || '',
-  guests: parseInt(route.query.guests) || 1
+  guests: parseInt(route.query.guests) || 1,
+  price: parseFloat(route.query.price) || 0
 });
 
 // Guest information
@@ -594,30 +561,28 @@ const guestInfo = ref({
   termsAccepted: false
 });
 
-// Payment information (updated for QR)
+// Payment information (simplified for QR)
 const paymentInfo = ref({
   method: 'qr',
-  payerName: '',
-  payerPhone: '',
-  preferredMethod: '',
-  qrGenerated: false,
-  qrReference: '',
-  status: 'pending', // pending, completed, failed
-  qrExpiresAt: null
+  status: 'pending' // pending, completed, failed
 });
 
-// QR Timer
-const qrTimeLeft = ref(0);
-let qrTimer = null;
+// QR Timer - removed since we're not using expiration
+// const qrTimeLeft = ref(0);
+// let qrTimer = null;
 
 // Validation errors
 const validationErrors = ref({});
-
-// Booking reference
-const bookingReference = ref('');
 const showTermsModal = ref(false);
 
 // Computed
+const roomImage = computed(() => {
+  if (room.value.foto) {
+    return `/storage/${room.value.foto}`;
+  }
+  return room.value.foto_url || '/images/room-default.jpg';
+});
+
 const nightCount = computed(() => {
   if (!bookingDetails.value.checkIn || !bookingDetails.value.checkOut) return 1;
   
@@ -634,6 +599,52 @@ const progressPercentage = computed(() => {
 });
 
 // Methods
+async function loadRoomData() {
+  try {
+    loading.value = true;
+    error.value = null;
+    
+    if (!bookingDetails.value.roomId) {
+      throw new Error('ID de habitación no válido');
+    }
+    
+    const response = await habitacionService.getHabitacion(bookingDetails.value.roomId);
+    
+    // Transformar los datos de la API al formato esperado por el componente
+    room.value = {
+      id: response.id,
+      name: response.nombre,
+      price: parseFloat(response.precio),
+      size: 25, // Campo no existe en BD, usar valor por defecto
+      capacity: response.nro_adultos + response.nro_ninos,
+      adults: response.nro_adultos,
+      children: response.nro_ninos,
+      bedType: response.tipo_habitacion,
+      description: response.descripcion,
+      foto: response.foto,
+      foto_url: response.foto_url,
+      hotel: response.hotel,
+      disponibilidades: response.disponibilidades || [],
+      ofertas: response.ofertas || [],
+      
+      // Campos adicionales para la UI
+      rating: 4.5,
+      reviewCount: Math.floor(Math.random() * 100) + 10
+    };
+    
+    // Si no se pasó el precio en la query, usar el de la habitación
+    if (!bookingDetails.value.price) {
+      bookingDetails.value.price = room.value.price;
+    }
+    
+  } catch (err) {
+    console.error('Error al cargar habitación:', err);
+    error.value = err.message || 'Error al cargar la habitación';
+  } finally {
+    loading.value = false;
+  }
+}
+
 function formatDisplayDate(dateString) {
   if (!dateString) return '';
   
@@ -643,14 +654,18 @@ function formatDisplayDate(dateString) {
 }
 
 function formatPrice(price) {
-  /*return price.toLocaleString('es-ES', {
+  return new Intl.NumberFormat('es-BO', {
     style: 'currency',
-    currency: 'EUR'
-  });*/
-  return `${price}`;
+    currency: 'BOB'
+  }).format(price);
 }
 
-function formatTime(seconds) {
+function formatTime(timeString) {
+  if (!timeString) return '';
+  return timeString.substring(0, 5); // HH:MM
+}
+
+function formatTimeCountdown(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
@@ -720,127 +735,62 @@ function validateStep1() {
   }
 }
 
-function generateQR() {
-  // Reset validation errors
-  validationErrors.value = {};
-  
-  // Validate QR payment fields
-  if (!paymentInfo.value.payerName) {
-    validationErrors.value.payerName = 'El nombre del pagador es obligatorio';
-  }
-  
-  if (!paymentInfo.value.payerPhone) {
-    validationErrors.value.payerPhone = 'El teléfono del pagador es obligatorio';
-  }
-  
-  if (!paymentInfo.value.preferredMethod) {
-    validationErrors.value.preferredMethod = 'Debe seleccionar un método de pago';
-  }
-  
-  // If no errors, generate QR
-  if (Object.keys(validationErrors.value).length === 0) {
-    // Generate QR reference
-    const timestamp = Date.now().toString().slice(-6);
-    paymentInfo.value.qrReference = `QR-${timestamp}`;
-    
-    // Set QR as generated
-    paymentInfo.value.qrGenerated = true;
-    paymentInfo.value.status = 'pending';
-    
-    // Set expiration time (15 minutes from now)
-    paymentInfo.value.qrExpiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    qrTimeLeft.value = 15 * 60; // 15 minutes in seconds
-    
-    // Start countdown timer
-    startQRTimer();
-  }
+function proceedWithPayment() {
+  // Simply proceed to create reservation without any payment verification
+  paymentInfo.value.status = 'completed';
+  createReservation();
 }
 
-function regenerateQR() {
-  // Stop current timer
-  if (qrTimer) {
-    clearInterval(qrTimer);
-  }
-  
-  // Reset QR state
-  paymentInfo.value.qrGenerated = false;
-  paymentInfo.value.status = 'pending';
-  
-  // Generate new QR
-  generateQR();
-}
-
-function startQRTimer() {
-  if (qrTimer) {
-    clearInterval(qrTimer);
-  }
-  
-  qrTimer = setInterval(() => {
-    if (qrTimeLeft.value > 0) {
-      qrTimeLeft.value--;
+async function createReservation() {
+  try {
+    // Preparar los datos de la reserva según el formato de la API
+    const reservaData = {
+      hotel_id: room.value.hotel.id,
+      fec_checkin: bookingDetails.value.checkIn,
+      fec_checkout: bookingDetails.value.checkOut,
+      detalles: [
+        {
+          habitacion_id: room.value.id,
+          cantidad: 1 // Por ahora, siempre 1 habitación
+        }
+      ]
+    };
+    
+    // Crear la reserva
+    const response = await reservaService.createReserva(reservaData);
+    createdReserva.value = response.reserva;
+    
+    // Move to confirmation step
+    currentStep.value = 3;
+    
+  } catch (err) {
+    console.error('Error al crear reserva:', err);
+    paymentInfo.value.status = 'failed';
+    
+    // Mostrar error específico si está disponible
+    if (err.message) {
+      alert(`Error al crear la reserva: ${err.message}`);
     } else {
-      // QR expired
-      clearInterval(qrTimer);
-      paymentInfo.value.status = 'expired';
+      alert('Error al procesar la reserva. Por favor, intenta nuevamente.');
     }
-  }, 1000);
-}
-
-function checkPaymentStatus() {
-  // In a real app, this would make an API call to check payment status
-  // For demo purposes, we'll simulate a random response
-  setTimeout(() => {
-    const random = Math.random();
-    if (random > 0.7) {
-      // 30% chance of success
-      paymentInfo.value.status = 'completed';
-      if (qrTimer) {
-        clearInterval(qrTimer);
-      }
-      
-      // Proceed to confirmation
-      setTimeout(() => {
-        processPayment();
-      }, 1000);
-    } else if (random < 0.1) {
-      // 10% chance of failure
-      paymentInfo.value.status = 'failed';
-    } else {
-      // 60% chance of still pending
-      paymentInfo.value.status = 'pending';
-    }
-  }, 1500);
-}
-
-function processPayment() {
-  // Generate a random booking reference
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const numbers = '0123456789';
-  let reference = '';
-  
-  for (let i = 0; i < 2; i++) {
-    reference += letters.charAt(Math.floor(Math.random() * letters.length));
   }
-  
-  reference += '-';
-  
-  for (let i = 0; i < 6; i++) {
-    reference += numbers.charAt(Math.floor(Math.random() * numbers.length));
-  }
-  
-  bookingReference.value = reference;
-  
-  // Move to confirmation step
-  currentStep.value = 3;
 }
 
 function downloadConfirmation() {
-  // In a real app, this would generate a PDF or similar
+  // En una aplicación real, esto generaría un PDF
+  const confirmationData = {
+    reserva: createdReserva.value,
+    habitacion: room.value,
+    huesped: guestInfo.value,
+    fechas: bookingDetails.value,
+    total: getTotalAmount()
+  };
+  
+  console.log('Datos de confirmación para PDF:', confirmationData);
   alert('En una aplicación real, esto generaría un PDF de confirmación para descargar.');
 }
 
 function goToHome() {
-  // Navigate to home page
   router.push({ name: 'home' });
 }
 
@@ -852,9 +802,8 @@ function isValidEmail(email) {
 
 // Lifecycle hooks
 onMounted(async () => {
-  // Check if user is logged in
+  // Check if user is logged in (opcional - comentado para permitir reservas sin login)
   /*if (!auth.isLogged) {
-    // Redirect to login page
     router.push({ 
       name: 'login',
       query: { redirect: route.fullPath }
@@ -862,89 +811,12 @@ onMounted(async () => {
     return;
   }*/
   
-  // Fetch room details based on roomId
-  // In a real app, this would be an API call
-  setTimeout(() => {
-    // Mock room data (similar to what we had in RoomDetail.vue)
-    const mockRooms = [
-      {
-        id: 1,
-        name: 'Habitación Estándar',
-        image: '/images/room-standard.jpeg',
-        price: 89.00,
-        size: 25,
-        capacity: 2,
-        bedType: 'Cama doble',
-        floor: 2,
-        view: 'Ciudad',
-        description: 'Habitación acogedora con todas las comodidades necesarias para una estancia agradable. Incluye baño privado y vistas a la ciudad.',
-        amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
-        rating: 4.5,
-        reviewCount: 128
-      },
-      {
-        id: 2,
-        name: 'Habitación Deluxe',
-        image: '/images/room-deluxe.jpeg',
-        price: 129.00,
-        size: 35,
-        capacity: 2,
-        bedType: 'Cama king',
-        floor: 3,
-        view: 'Ciudad',
-        description: 'Habitación espaciosa con vistas panorámicas. Equipada con minibar, escritorio y zona de estar. Perfecta para viajeros de negocios y placer.',
-        amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado'],
-        rating: 4.7,
-        reviewCount: 95
-      },
-      {
-        id: 3,
-        name: 'Suite Junior',
-        image: '/images/room-junior-suite.jpg',
-        price: 159.00,
-        size: 45,
-        capacity: 3,
-        bedType: 'Cama king + sofá cama',
-        floor: 4,
-        view: 'Jardín',
-        description: 'Suite elegante con dormitorio y sala de estar separada. Ofrece un espacio perfecto para relajarse después de un día de turismo o negocios.',
-        amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado', 'Balcón'],
-        rating: 4.8,
-        reviewCount: 76
-      },
-      {
-        id: 4,
-        name: 'Suite Ejecutiva',
-        image: '/images/room-executive-suite.jpg',
-        price: 219.00,
-        size: 60,
-        capacity: 4,
-        bedType: 'Cama king + 2 camas individuales',
-        floor: 5,
-        view: 'Mar',
-        description: 'Amplia suite con dormitorio separado, sala de estar y comedor. Ideal para familias o estadías prolongadas. Incluye servicio de mayordomo.',
-        amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado', 'Balcón', 'Vista al mar', 'Desayuno incluido', 'Servicio de habitaciones'],
-        rating: 4.9,
-        reviewCount: 112
-      },
-    ];
-    
-    // Find the room
-    const foundRoom = mockRooms.find(r => r.id === bookingDetails.value.roomId);
-    if (foundRoom) {
-      room.value = foundRoom;
-    } else {
-      // If room not found, redirect to rooms list
-      router.push({ name: 'rooms' });
-    }
-  }, 300);
+  // Cargar datos de la habitación
+  await loadRoomData();
 });
 
 onUnmounted(() => {
-  // Clean up timer
-  if (qrTimer) {
-    clearInterval(qrTimer);
-  }
+  // No cleanup needed since we removed the timer
 });
 </script>
   
@@ -1015,6 +887,15 @@ onUnmounted(() => {
   background-color: #f0f8ff;
 }
 
+.qr-code-image {
+  width: 200px;
+  height: 200px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  object-fit: contain;
+  background-color: #fff;
+}
+
 .qr-code-placeholder {
   width: 200px;
   height: 200px;
@@ -1064,6 +945,7 @@ onUnmounted(() => {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .qr-code-image,
   .qr-code-placeholder {
     width: 160px;
     height: 160px;
