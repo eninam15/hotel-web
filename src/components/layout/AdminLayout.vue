@@ -1,80 +1,97 @@
 <!-- src/components/layout/AdminLayout.vue -->
 <template>
   <div class="admin-layout d-flex">
+    <!-- Overlay para mobile cuando sidebar está abierto -->
+    <div 
+      v-if="!sidebarCollapsed && isMobile" 
+      class="sidebar-overlay"
+      @click="closeSidebar"
+    ></div>
+    
     <!-- Sidebar -->
     <aside 
       class="admin-sidebar bg-white shadow-lg" 
-      :class="{ 'collapsed': sidebarCollapsed }"
+      :class="{ 
+        'collapsed': sidebarCollapsed,
+        'mobile-open': !sidebarCollapsed && isMobile
+      }"
     >
       <!-- Sidebar Header -->
       <div class="sidebar-header p-4 d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center">
-          <!--<img src="/images/logo.png" alt="Logo" class="logo me-2" height="36" v-if="!sidebarCollapsed">-->
           <span class="h5 text-primary mb-0 fw-bold" v-if="!sidebarCollapsed">Panel Admin</span>
-          <!--<img src="/images/logo-icon.png" alt="Logo" height="28" v-else>-->
+          <span class="h6 text-primary mb-0 fw-bold" v-else>PA</span>
         </div>
         <button 
           class="btn btn-sm btn-outline-secondary border-0 sidebar-toggle" 
           @click="toggleSidebar"
-          title="Colapsar menú"
+          :title="sidebarCollapsed ? 'Expandir menú' : 'Colapsar menú'"
         >
           <i class="bi" :class="sidebarCollapsed ? 'bi-chevron-right' : 'bi-chevron-left'"></i>
         </button>
       </div>
       
       <!-- Sidebar Navigation -->
-      <nav class="sidebar-menu p-4">
+      <nav class="sidebar-menu px-3 pb-4">
         <ul class="nav flex-column">
           <li class="nav-item mb-2">
             <router-link 
               :to="{ name: 'admin.dashboard' }" 
-              class="nav-link px-3 py-2 rounded-3" 
+              class="nav-link px-3 py-2 rounded-3 d-flex align-items-center" 
               :class="{ 'active bg-primary text-white': isActive('admin.dashboard') }"
+              @click="handleNavClick"
             >
-              <i class="bi bi-speedometer2 me-3"></i>
+              <i class="bi bi-speedometer2" :class="{ 'me-3': !sidebarCollapsed }"></i>
               <span v-if="!sidebarCollapsed">Dashboard</span>
             </router-link>
           </li>
           <li class="nav-item mb-2">
             <router-link 
               :to="{ name: 'admin.reservations' }" 
-              class="nav-link px-3 py-2 rounded-3" 
+              class="nav-link px-3 py-2 rounded-3 d-flex align-items-center" 
               :class="{ 'active bg-primary text-white': isActive('admin.reservations') }"
+              @click="handleNavClick"
             >
-              <i class="bi bi-calendar-check me-3"></i>
+              <i class="bi bi-calendar-check" :class="{ 'me-3': !sidebarCollapsed }"></i>
               <span v-if="!sidebarCollapsed">Reservas</span>
             </router-link>
           </li>
           <li class="nav-item mb-2">
             <router-link 
               :to="{ name: 'admin.rooms' }" 
-              class="nav-link px-3 py-2 rounded-3" 
+              class="nav-link px-3 py-2 rounded-3 d-flex align-items-center" 
               :class="{ 'active bg-primary text-white': isActive('admin.rooms') }"
+              @click="handleNavClick"
             >
-              <i class="bi bi-door-open me-3"></i>
+              <i class="bi bi-door-open" :class="{ 'me-3': !sidebarCollapped }"></i>
               <span v-if="!sidebarCollapsed">Habitaciones</span>
             </router-link>
           </li>
-          <!--<li class="nav-item mb-2">
+          <!-- Navegación comentada disponible para futuro uso -->
+          <!--
+          <li class="nav-item mb-2">
             <router-link 
               :to="{ name: 'admin.users' }" 
-              class="nav-link px-3 py-2 rounded-3" 
+              class="nav-link px-3 py-2 rounded-3 d-flex align-items-center" 
               :class="{ 'active bg-primary text-white': isActive('admin.users') }"
+              @click="handleNavClick"
             >
-              <i class="bi bi-people me-3"></i>
+              <i class="bi bi-people" :class="{ 'me-3': !sidebarCollapsed }"></i>
               <span v-if="!sidebarCollapsed">Usuarios</span>
             </router-link>
           </li>
           <li class="nav-item mb-2">
             <router-link 
               :to="{ name: 'admin.settings' }" 
-              class="nav-link px-3 py-2 rounded-3" 
+              class="nav-link px-3 py-2 rounded-3 d-flex align-items-center" 
               :class="{ 'active bg-primary text-white': isActive('admin.settings') }"
+              @click="handleNavClick"
             >
-              <i class="bi bi-gear me-3"></i>
+              <i class="bi bi-gear" :class="{ 'me-3': !sidebarCollapsed }"></i>
               <span v-if="!sidebarCollapsed">Ajustes</span>
             </router-link>
-          </li>-->
+          </li>
+          -->
         </ul>
       </nav>
       
@@ -82,21 +99,26 @@
       <div class="sidebar-footer mt-auto p-4">
         <button 
           class="btn btn-primary w-100 d-flex align-items-center justify-content-center" 
-          @click="logout"
+          @click="handleLogout"
+          :disabled="isLoggingOut"
         >
-          <i class="bi bi-box-arrow-right me-2"></i>
-          <span v-if="!sidebarCollapsed">Cerrar sesión</span>
+          <div v-if="isLoggingOut" class="spinner-border spinner-border-sm me-2" role="status">
+            <span class="visually-hidden">Cerrando sesión...</span>
+          </div>
+          <i v-else class="bi bi-box-arrow-right" :class="{ 'me-2': !sidebarCollapsed }"></i>
+          <span v-if="!sidebarCollapsed">{{ isLoggingOut ? 'Cerrando...' : 'Cerrar sesión' }}</span>
         </button>
       </div>
     </aside>
     
     <!-- Main Content Area -->
-    <div class="admin-content bg-light" :class="{ 'expanded': sidebarCollapsed }">
+    <div class="admin-content bg-light" :class="{ 'expanded': sidebarCollapsed && !isMobile }">
       <!-- Header -->
       <header class="admin-header bg-white shadow-sm d-flex align-items-center px-4 py-3">
         <button 
-          class="btn btn-sm btn-light d-md-none me-3"
+          class="btn btn-sm btn-light d-lg-none me-3"
           @click="toggleSidebar"
+          :title="sidebarCollapsed ? 'Abrir menú' : 'Cerrar menú'"
         >
           <i class="bi bi-list"></i>
         </button>
@@ -106,46 +128,84 @@
         <div class="ms-auto d-flex align-items-center">
           <!-- Notifications Dropdown -->
           <div class="dropdown me-3">
-            <button class="btn btn-light position-relative" data-bs-toggle="dropdown" aria-expanded="false">
+            <button 
+              class="btn btn-light position-relative" 
+              data-bs-toggle="dropdown" 
+              aria-expanded="false"
+              title="Notificaciones"
+            >
               <i class="bi bi-bell"></i>
-              <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                {{ unreadNotifications }}
+              <span 
+                v-if="unreadNotifications > 0"
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+              >
+                {{ unreadNotifications > 99 ? '99+' : unreadNotifications }}
               </span>
             </button>
-            <ul class="dropdown-menu dropdown-menu-end">
+            <ul class="dropdown-menu dropdown-menu-end notification-dropdown">
               <li><h6 class="dropdown-header">Notificaciones</h6></li>
               <li v-if="notifications.length === 0">
                 <span class="dropdown-item text-muted">No hay notificaciones</span>
               </li>
               <li v-for="(notification, index) in notifications" :key="index">
-                <a class="dropdown-item" href="#">
-                  <div class="d-flex align-items-center">
-                    <i :class="getNotificationIcon(notification.type)" class="me-2"></i>
-                    <div>
-                      <div>{{ notification.message }}</div>
+                <a 
+                  class="dropdown-item notification-item" 
+                  href="#"
+                  :class="{ 'unread': !notification.read }"
+                  @click.prevent="markAsRead(index)"
+                >
+                  <div class="d-flex align-items-start">
+                    <i :class="getNotificationIcon(notification.type)" class="me-2 mt-1"></i>
+                    <div class="flex-grow-1">
+                      <div class="notification-message">{{ notification.message }}</div>
                       <div class="text-muted small">{{ formatNotificationTime(notification.time) }}</div>
                     </div>
                   </div>
                 </a>
               </li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-center" href="#">Ver todas</a></li>
+              <li v-if="notifications.length > 0"><hr class="dropdown-divider"></li>
+              <li v-if="notifications.length > 0">
+                <a class="dropdown-item text-center text-primary" href="#" @click.prevent="clearAllNotifications">
+                  Marcar todas como leídas
+                </a>
+              </li>
             </ul>
           </div>
           
           <!-- User dropdown -->
           <div class="dropdown">
-            <button class="btn btn-light d-flex align-items-center" data-bs-toggle="dropdown" aria-expanded="false">
-              <img :src="userAvatar" alt="User" class="avatar-sm rounded-circle me-2">
-              <span>{{ auth.user?.firstName || 'Admin' }}</span>
+            <button 
+              class="btn btn-light d-flex align-items-center" 
+              data-bs-toggle="dropdown" 
+              aria-expanded="false"
+            >
+              <img 
+                :src="userAvatar" 
+                alt="Avatar de usuario" 
+                class="avatar-sm rounded-circle me-2"
+                @error="handleAvatarError"
+              >
+              <span class="d-none d-md-inline">{{ displayName }}</span>
               <i class="bi bi-chevron-down ms-2"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-              <li><h6 class="dropdown-header">Hola, {{ auth.user?.firstName || 'Admin' }}!</h6></li>
-              <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i> Mi perfil</a></li>
-              <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i> Configuración</a></li>
+              <li><h6 class="dropdown-header">Hola, {{ displayName }}!</h6></li>
+              <li>
+                <a class="dropdown-item" href="#" @click.prevent>
+                  <i class="bi bi-person me-2"></i> Mi perfil
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="#" @click.prevent>
+                  <i class="bi bi-gear me-2"></i> Configuración
+                </a>
+              </li>
               <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item" href="#" @click.prevent="logout"><i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión</a></li>
+              <li>
+                <a class="dropdown-item" href="#" @click.prevent="handleLogout">
+                  <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+                </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -165,7 +225,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/store/auth';
 
@@ -175,7 +235,9 @@ const route = useRoute();
 const router = useRouter();
 
 // State
-const sidebarCollapsed = ref(localStorage.getItem('adminSidebarCollapsed') === 'true' || window.innerWidth < 992);
+const sidebarCollapsed = ref(false);
+const isMobile = ref(false);
+const isLoggingOut = ref(false);
 const notifications = ref([
   {
     type: 'reservation',
@@ -206,14 +268,46 @@ const userAvatar = computed(() => {
   return auth.user?.avatar || '/images/avatar-placeholder.png';
 });
 
+const displayName = computed(() => {
+  return auth.user?.firstName || auth.user?.name || 'Admin';
+});
+
 const currentYear = computed(() => {
   return new Date().getFullYear();
 });
 
 // Methods
+function initializeSidebar() {
+  const savedState = localStorage.getItem('adminSidebarCollapsed');
+  const windowWidth = window.innerWidth;
+  
+  isMobile.value = windowWidth < 992;
+  
+  if (isMobile.value) {
+    sidebarCollapsed.value = true;
+  } else {
+    sidebarCollapsed.value = savedState === 'true';
+  }
+}
+
 function toggleSidebar() {
   sidebarCollapsed.value = !sidebarCollapsed.value;
-  localStorage.setItem('adminSidebarCollapsed', sidebarCollapsed.value);
+  
+  if (!isMobile.value) {
+    localStorage.setItem('adminSidebarCollapsed', sidebarCollapsed.value.toString());
+  }
+}
+
+function closeSidebar() {
+  if (isMobile.value) {
+    sidebarCollapsed.value = true;
+  }
+}
+
+function handleNavClick() {
+  if (isMobile.value) {
+    closeSidebar();
+  }
 }
 
 function isActive(routeName) {
@@ -247,38 +341,85 @@ function formatNotificationTime(date) {
   return date.toLocaleDateString('es-ES');
 }
 
-async function logout() {
+function markAsRead(index) {
+  notifications.value[index].read = true;
+}
+
+function clearAllNotifications() {
+  notifications.value.forEach(notification => {
+    notification.read = true;
+  });
+}
+
+function handleAvatarError(event) {
+  event.target.src = '/images/avatar-placeholder.png';
+}
+
+async function handleLogout() {
+  if (isLoggingOut.value) return;
+  
   try {
+    isLoggingOut.value = true;
     await auth.logout();
     router.push({ name: 'login' });
   } catch (error) {
-    console.error('Error during logout:', error);
+    console.error('Error durante el cierre de sesión:', error);
+    // Aquí podrías mostrar un mensaje de error al usuario
+  } finally {
+    isLoggingOut.value = false;
   }
 }
 
 // Handle resize events for responsive sidebar
 function handleResize() {
-  if (window.innerWidth < 992 && !sidebarCollapsed.value) {
-    sidebarCollapsed.value = true;
-    localStorage.setItem('adminSidebarCollapsed', 'true');
+  const wasMobile = isMobile.value;
+  isMobile.value = window.innerWidth < 992;
+  
+  // Si cambió de móvil a escritorio o viceversa
+  if (wasModal !== isMobile.value) {
+    if (isMobile.value) {
+      // Cambió a móvil - colapsar sidebar
+      sidebarCollapsed.value = true;
+    } else {
+      // Cambió a escritorio - restaurar estado guardado
+      const savedState = localStorage.getItem('adminSidebarCollapsed');
+      sidebarCollapsed.value = savedState === 'true';
+    }
+  }
+}
+
+// Check admin permissions
+function checkAdminAccess() {
+  if (!auth.user) {
+    router.push({ name: 'login' });
+    return;
+  }
+  
+  if (!auth.isAdmin) {
+    router.push({ name: 'home' });
+    return;
   }
 }
 
 // Lifecycle hooks
 onMounted(() => {
-  // Check if user has admin role
-  if (!auth.isAdmin) {
-    router.push({ name: 'home' });
-  }
+  //checkAdminAccess();
+  initializeSidebar();
   
   // Add resize event listener
   window.addEventListener('resize', handleResize);
-  
-  // Clean up event listener on unmount
-  onUnmounted(() => {
-    window.removeEventListener('resize', handleResize);
-  });
 });
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
+});
+
+// Watch for auth changes
+/*watch(() => auth.user, (newUser) => {
+  if (!newUser) {
+    router.push({ name: 'login' });
+  }
+}, { immediate: true });*/
 </script>
 
 <style scoped>
@@ -286,6 +427,17 @@ onMounted(() => {
 .admin-layout {
   min-height: 100vh;
   position: relative;
+}
+
+/* Overlay para mobile */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
 }
 
 /* Sidebar styles */
@@ -299,7 +451,7 @@ onMounted(() => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .admin-sidebar.collapsed {
@@ -308,12 +460,20 @@ onMounted(() => {
 
 .admin-sidebar .nav-link {
   color: #495057;
+  text-decoration: none;
   transition: all 0.2s ease;
+  border: none;
+  white-space: nowrap;
 }
 
 .admin-sidebar .nav-link:hover:not(.active) {
   background-color: #e9ecef;
   color: #0d6efd;
+  transform: translateX(2px);
+}
+
+.admin-sidebar .nav-link.active {
+  box-shadow: 0 2px 4px rgba(13, 110, 253, 0.15);
 }
 
 .sidebar-toggle {
@@ -322,6 +482,11 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sidebar-toggle:hover {
+  background-color: #e9ecef;
 }
 
 /* Content area styles */
@@ -331,7 +496,7 @@ onMounted(() => {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  transition: margin-left 0.3s ease;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .admin-content.expanded {
@@ -340,6 +505,7 @@ onMounted(() => {
 
 .admin-header {
   height: 60px;
+  border-bottom: 1px solid #dee2e6;
 }
 
 .admin-main {
@@ -349,12 +515,46 @@ onMounted(() => {
 
 .admin-footer {
   margin-top: auto;
+  border-top: 1px solid #dee2e6;
 }
 
 .avatar-sm {
   width: 30px;
   height: 30px;
   object-fit: cover;
+}
+
+/* Notification styles */
+.notification-dropdown {
+  width: 320px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 0.75rem 1rem;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.notification-item.unread {
+  background-color: #f8f9fa;
+  border-left-color: #0d6efd;
+}
+
+.notification-item:hover {
+  background-color: #e9ecef;
+}
+
+.notification-message {
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Loading spinner */
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
 }
 
 /* Responsive adjustments */
@@ -364,9 +564,8 @@ onMounted(() => {
     width: 280px;
   }
   
-  .admin-sidebar.collapsed {
+  .admin-sidebar.mobile-open {
     transform: translateX(0);
-    width: 280px;
   }
   
   .admin-content {
@@ -376,5 +575,38 @@ onMounted(() => {
   .admin-content.expanded {
     margin-left: 0;
   }
+}
+
+@media (max-width: 575.98px) {
+  .admin-header {
+    padding: 0.75rem 1rem;
+  }
+  
+  .admin-main {
+    padding: 1rem;
+  }
+  
+  .notification-dropdown {
+    width: 280px;
+  }
+}
+
+/* Mejoras de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  .admin-sidebar,
+  .admin-content,
+  .nav-link,
+  .sidebar-toggle,
+  .notification-item {
+    transition: none;
+  }
+}
+
+/* Focus states para accesibilidad */
+.nav-link:focus,
+.sidebar-toggle:focus,
+.btn:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
 }
 </style>

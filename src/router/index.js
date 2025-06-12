@@ -19,6 +19,7 @@ import Booking from '@/views/user/Booking.vue';
 import AdminDashboard from '@/views/admin/Dashboard/AdminOverview.vue';
 import ReservationsList from '@/views/admin/reservations/ReservationsList.vue';
 import RoomsList from '@/views/admin/rooms/RoomsList.vue';
+import UserLayout from '@/components/layout/UserLayout.vue';
 
 const routes = [
   // Public routes
@@ -50,13 +51,52 @@ const routes = [
   // User routes (protected)
   {
     path: '/app',
-    component: PublicLayout,
-    meta: { requiresAuth: true },
+    component: UserLayout,
+    //meta: { requiresAuth: true },
     children: [
-      //{ path: 'dashboard', name: 'dashboard', component: UserDashboard },
-      { path: 'booking', name: 'booking', component: Booking },
-     // { path: 'profile', name: 'profile', component: () => import('@/views/user/Profile.vue') },
-      //{ path: 'reservations', name: 'user-reservations', component: () => import('@/views/user/UserReservations.vue') },
+      {
+        path: '',
+        name: 'user.dashboard',
+        component: AdminDashboard
+      },
+      // Reservations routes
+      {
+        path: 'reservations',
+        name: 'user.reservation',
+        component: ReservationsList
+      },
+      
+      // Rooms routes
+      {
+        path: 'rooms',
+        name: 'user.room',
+        component: RoomsList
+      },
+
+      {
+        path: 'services',
+        name: 'user.services',
+        component: RoomsList
+      },
+
+      {
+        path: 'orders',
+        name: 'user.orders',
+        component: RoomsList
+      },
+
+      {
+        path: 'profile',
+        name: 'user.profile',
+        component: RoomsList
+      },
+
+      {
+        path: 'support',
+        name: 'user.support',
+        component: RoomsList
+      },
+      
     ]
   },
   
@@ -64,7 +104,7 @@ const routes = [
   {
     path: '/admin',
     component: AdminLayout,
-    meta: { requiresAuth: true, requiresAdmin: true },
+    //meta: { requiresAuth: true, requiresAdmin: true },
     children: [
       {
         path: '',
@@ -77,75 +117,14 @@ const routes = [
         name: 'admin.reservations',
         component: ReservationsList
       },
-      /*{
-        path: 'reservations/create',
-        name: 'admin.reservations.create',
-        component: () => import('@/views/admin/reservations/ReservationCreate.vue')
-      },
-      {
-        path: 'reservations/:id',
-        name: 'admin.reservations.view',
-        component: () => import('@/views/admin/reservations/ReservationView.vue'),
-        props: true
-      },
-      {
-        path: 'reservations/:id/edit',
-        name: 'admin.reservations.edit',
-        component: () => import('@/views/admin/reservations/ReservationEdit.vue'),
-        props: true
-      },*/
+      
       // Rooms routes
       {
         path: 'rooms',
         name: 'admin.rooms',
         component: RoomsList
       },
-      /*{
-        path: 'rooms/create',
-        name: 'admin.rooms.create',
-        component: () => import('@/views/admin/rooms/RoomCreate.vue')
-      },
-      {
-        path: 'rooms/:id',
-        name: 'admin.rooms.view',
-        component: () => import('@/views/admin/rooms/RoomView.vue'),
-        props: true
-      },
-      {
-        path: 'rooms/:id/edit',
-        name: 'admin.rooms.edit',
-        component: () => import('@/views/admin/rooms/RoomEdit.vue'),
-        props: true
-      },
-      // Users routes
-      {
-        path: 'users',
-        name: 'admin.users',
-        component: () => import('@/views/admin/users/UsersList.vue')
-      },
-      {
-        path: 'users/create',
-        name: 'admin.users.create',
-        component: () => import('@/views/admin/users/UserCreate.vue')
-      },
-      {
-        path: 'users/:id',
-        name: 'admin.users.view',
-        component: () => import('@/views/admin/users/UserView.vue'),
-        props: true
-      },
-      {
-        path: 'users/:id/edit',
-        name: 'admin.users.edit',
-        component: () => import('@/views/admin/users/UserEdit.vue'),
-        props: true
-      },
-      // Settings route
-      {
-        path: 'settings',
-        name: 'admin.settings',
-        component: () => import('@/views/admin/settings/AdminSettings.vue')
-      }*/
+      
     ]
   },
   
