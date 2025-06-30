@@ -174,7 +174,7 @@
           
           <!-- User dropdown -->
           <div class="dropdown">
-            <button 
+            <!--<button 
               class="btn btn-light d-flex align-items-center" 
               data-bs-toggle="dropdown" 
               aria-expanded="false"
@@ -187,7 +187,7 @@
               >
               <span class="d-none d-md-inline">{{ displayName }}</span>
               <i class="bi bi-chevron-down ms-2"></i>
-            </button>
+            </button>-->
             <ul class="dropdown-menu dropdown-menu-end">
               <li><h6 class="dropdown-header">Hola, {{ displayName }}!</h6></li>
               <li>

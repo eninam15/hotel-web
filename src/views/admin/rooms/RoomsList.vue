@@ -1,7 +1,5 @@
-<!-- src/views/admin/RoomsManagement.vue -->
 <template>
   <div class="rooms-page">
-    <!-- Page header with actions -->
     <div class="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h1 class="h3 mb-0">Gestión de Habitaciones</h1>
@@ -22,7 +20,6 @@
       </div>
     </div>
 
-    <!-- Filters and search -->
     <div class="card mb-4">
       <div class="card-body">
         <div class="row g-3">
@@ -122,7 +119,6 @@
       </div>
     </div>
 
-    <!-- Stats cards -->
     <div class="row mb-4">
       <div class="col-md-3">
         <div class="card border-0 bg-success bg-opacity-10">
@@ -162,7 +158,6 @@
       </div>
     </div>
 
-    <!-- Toggle view buttons -->
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div class="text-muted">
         {{ filteredRooms.length }} habitación{{ filteredRooms.length !== 1 ? 'es' : '' }} encontrada{{ filteredRooms.length !== 1 ? 's' : '' }}
@@ -185,7 +180,6 @@
       </div>
     </div>
 
-    <!-- Loading state -->
     <div v-if="isLoading" class="text-center my-5">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Cargando...</span>
@@ -193,7 +187,6 @@
       <p class="mt-2">Cargando habitaciones...</p>
     </div>
 
-    <!-- Error state -->
     <div v-else-if="error" class="alert alert-danger">
       <i class="bi bi-exclamation-triangle-fill me-2"></i>
       {{ error }}
@@ -202,7 +195,6 @@
       </button>
     </div>
 
-    <!-- Empty state -->
     <div v-else-if="filteredRooms.length === 0" class="text-center my-5">
       <div class="empty-state">
         <i class="bi bi-door-closed display-1 text-muted"></i>
@@ -229,7 +221,6 @@
       </div>
     </div>
 
-    <!-- Grid view -->
     <div v-else-if="viewMode === 'grid'" class="room-grid">
       <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
         <div class="col" v-for="room in paginatedRooms" :key="room.id">
@@ -324,7 +315,6 @@
       </div>
     </div>
 
-    <!-- List view -->
     <div v-else class="room-list">
       <div class="card shadow-sm">
         <div class="table-responsive">
@@ -423,7 +413,6 @@
       </div>
     </div>
 
-    <!-- Pagination controls -->
     <div v-if="filteredRooms.length > 0" class="d-flex justify-content-between align-items-center mt-4">
       <div class="pagination-info">
         Mostrando <strong>{{ startIndex + 1 }}</strong> a <strong>{{ endIndex }}</strong> de <strong>{{ filteredRooms.length }}</strong> habitaciones
@@ -457,7 +446,6 @@
       </nav>
     </div>
 
-    <!-- Modals -->
     <RoomFormModal
       v-if="showRoomModal"
       :show="showRoomModal"
@@ -465,7 +453,8 @@
       :room-types="roomTypes"
       :is-editing="isEditing"
       @close="closeRoomModal"
-      @save="handleRoomSave"
+      @success="handleRoomSaveSuccess"
+      @error="handleRoomSaveError"
     />
 
     <RoomViewModal
@@ -494,6 +483,7 @@ import { useRouter } from 'vue-router';
 import RoomFormModal from './RoomFormModal.vue';
 import RoomViewModal from './RoomViewModal.vue';
 import DeleteConfirmModal from './DeleteConfirmModal.vue';
+import { habitacionService } from '@/services/habitacionService.js'; // Importa el servicio
 
 // Router
 const router = useRouter();
@@ -516,14 +506,8 @@ const isDeleting = ref(false);
 let searchTimeout = null;
 
 // Room types and floors
-const roomTypes = ref([
-  { id: 1, name: 'Habitación Estándar' },
-  { id: 2, name: 'Habitación Deluxe' },
-  { id: 3, name: 'Suite Junior' },
-  { id: 4, name: 'Suite Ejecutiva' }
-]);
-
-const floors = ref([1, 2, 3, 4, 5]);
+const roomTypes = ref([]); // Ahora se cargará desde el servicio
+const floors = ref([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]); // Puedes hacer esto dinámico si tienes un servicio para pisos
 
 // Filter and sorting state
 const filters = ref({
@@ -668,55 +652,32 @@ async function refreshData() {
   error.value = null;
   
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Mock data
-    rooms.value = [
-      {
-        id: 1,
-        number: '101',
-        name: 'Habitación Estándar',
-        type: 'Habitación Estándar',
-        typeId: 1,
-        floor: 1,
-        capacity: 2,
-        size: 25,
-        price: 89.00,
-        description: 'Habitación acogedora con todas las comodidades necesarias para una estancia agradable. Incluye baño privado y vistas a la ciudad.',
-        image: '/images/room-standard.jpeg',
-        amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
-        status: 'available',
-        rating: 4.5,
-        reviewCount: 128,
-        updatedAt: '2024-05-10T14:30:22',
-        createdAt: '2024-01-15T10:00:00'
-      },
-      {
-        id: 2,
-        number: '102',
-        name: 'Habitación Estándar',
-        type: 'Habitación Estándar',
-        typeId: 1,
-        floor: 1,
-        capacity: 2,
-        size: 25,
-        price: 89.00,
-        description: 'Habitación acogedora con todas las comodidades necesarias para una estancia agradable. Incluye baño privado y vistas a la ciudad.',
-        image: '/images/room-standard.jpeg',
-        amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
-        status: 'occupied',
-        rating: 4.5,
-        reviewCount: 128,
-        updatedAt: '2024-05-10T14:30:22',
-        createdAt: '2024-01-15T10:00:00'
-      },
-      // ... más datos mock
-    ];
+    const fetchedRooms = await habitacionService.getAllHabitaciones();
+    // Asegúrate de que los datos tengan el formato esperado por tu UI
+    rooms.value = fetchedRooms.map(room => ({
+      id: room.id,
+      number: room.number,
+      name: room.name,
+      type: room.type, // Asegúrate que 'type' venga directamente o mapea de typeId
+      typeId: room.typeId,
+      floor: room.floor,
+      capacity: room.capacity,
+      size: room.size,
+      price: parseFloat(room.price),
+      description: room.description,
+      image: room.image || '/images/room-placeholder.jpg', // Usa una imagen por defecto si no hay
+      amenities: room.amenities || [],
+      status: room.status,
+      updatedAt: room.updatedAt || room.created_at, // O el campo de última actualización de tu API
+      createdAt: room.createdAt || room.created_at
+    }));
+
+    // Cargar tipos de habitación
+    roomTypes.value = await habitacionService.getRoomTypes();
     
   } catch (err) {
     console.error('Error fetching rooms:', err);
-    error.value = 'No se pudieron cargar las habitaciones. Por favor, intenta de nuevo.';
+    error.value = err.message || 'No se pudieron cargar las habitaciones. Por favor, intenta de nuevo.';
   } finally {
     isLoading.value = false;
   }
@@ -776,6 +737,7 @@ function goToPage(page) {
 }
 
 function formatDate(dateString) {
+  if (!dateString) return 'N/A';
   const date = new Date(dateString);
   return date.toLocaleDateString('es-ES', { 
     year: 'numeric',
@@ -787,7 +749,7 @@ function formatDate(dateString) {
 function formatPrice(price) {
   return price.toLocaleString('es-ES', {
     style: 'currency',
-    currency: 'EUR'
+    currency: 'EUR' // Ajusta la moneda según tu necesidad
   });
 }
 
@@ -858,38 +820,16 @@ function closeDeleteModal() {
   selectedRoom.value = null;
 }
 
-async function handleRoomSave(roomData) {
-  try {
-    if (isEditing.value) {
-      // Update existing room
-      const index = rooms.value.findIndex(r => r.id === roomData.id);
-      if (index !== -1) {
-        rooms.value[index] = { 
-          ...roomData, 
-          updatedAt: new Date().toISOString() 
-        };
-      }
-    } else {
-      // Create new room
-      const newRoom = {
-        ...roomData,
-        id: Date.now(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      rooms.value.push(newRoom);
-    }
-    
-    closeRoomModal();
-    
-    // Show success message (you might want to use a toast notification)
-    const action = isEditing.value ? 'actualizada' : 'creada';
-    alert(`Habitación ${roomData.number} ${action} exitosamente`);
-    
-  } catch (error) {
-    console.error('Error saving room:', error);
-    alert('Error al guardar la habitación. Por favor, intenta de nuevo.');
-  }
+async function handleRoomSaveSuccess({ message, room }) {
+  // Recargar la lista de habitaciones después de una operación exitosa
+  await refreshData();
+  closeRoomModal(); // Cierra el modal
+  alert(message); // Muestra el mensaje de éxito
+}
+
+async function handleRoomSaveError(err) {
+  console.error('Error al guardar/actualizar habitación:', err);
+  alert(`Error: ${err.message || 'No se pudo completar la operación.'}`);
 }
 
 async function handleDelete() {
@@ -898,20 +838,15 @@ async function handleDelete() {
   isDeleting.value = true;
   
   try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Remove room from the list
-    rooms.value = rooms.value.filter(r => r.id !== selectedRoom.value.id);
+    await habitacionService.deleteHabitacion(selectedRoom.value.id);
     
     closeDeleteModal();
-    
-    // Show success message
     alert(`Habitación ${selectedRoom.value.number} eliminada correctamente`);
+    await refreshData(); // Refresca la lista después de eliminar
     
   } catch (error) {
     console.error('Error deleting room:', error);
-    alert('Error al eliminar la habitación. Por favor, intenta de nuevo.');
+    alert(`Error al eliminar la habitación: ${error.message || 'Por favor, intenta de nuevo.'}`);
   } finally {
     isDeleting.value = false;
   }
@@ -924,6 +859,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* Tu estilo existente */
 .spin {
   animation: spin 1s linear infinite;
 }

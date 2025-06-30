@@ -1,9 +1,7 @@
 <template>
   <HeroCarousel :slides="heroSlides" @cta="handleCtaClick" />
 
-  <RoomsGrid :rooms="rooms" :loading="loadingRooms" />
-
-  <!-- <ServicesGrid :services="services" /> -->
+  <RoomsGrid />
 
   <AboutSection
     :image="aboutImage"
@@ -18,107 +16,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
 import { useRouter } from "vue-router";
-import { habitacionService } from '@/services';
 import HeroCarousel from "@/components/home/HeroCarousel.vue";
-import WhyUsCards from "@/components/home/WhyUsCards.vue";
-import ServicesGrid from "@/components/home/ServicesGrid.vue";
 import RoomsGrid from "@/components/rooms/RoomsGrid.vue";
 import TestimonialCarousel from "@/components/home/TestimonialCarousel.vue";
-import SecondaryCTA from "@/components/home/SecondaryCTA.vue";
 import AboutSection from "@/components/home/AboutSection.vue";
 import FooterSection from "@/components/home/FooterSection.vue";
 
 const router = useRouter();
-
-// Estados reactivos
-const rooms = ref([]);
-const loadingRooms = ref(true);
-const errorRooms = ref(null);
-
-// Cargar habitaciones al montar el componente
-onMounted(async () => {
-  await loadRooms();
-});
-
-// Función para cargar habitaciones
-async function loadRooms() {
-  try {
-    loadingRooms.value = true;
-    errorRooms.value = null;
-    
-    const response = await habitacionService.getAllHabitaciones();
-    
-    // Transformar los datos de la API al formato esperado por el componente
-    rooms.value = response.map(habitacion => ({
-      id: habitacion.id,
-      name: habitacion.nombre,
-      image: habitacion.foto ? `/storage/${habitacion.foto}` : '/images/room-default.jpg',
-      price: parseFloat(habitacion.precio),
-      size: habitacion.size || 25, // Si no hay tamaño en la BD, usar valor por defecto
-      capacity: habitacion.nro_adultos + habitacion.nro_ninos,
-      adults: habitacion.nro_adultos,
-      children: habitacion.nro_ninos,
-      bedType: habitacion.tipo_habitacion,
-      description: habitacion.descripcion || 'Habitación cómoda con todas las comodidades necesarias.',
-      amenities: habitacion.amenidades || ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
-      hotel: habitacion.hotel ? {
-        id: habitacion.hotel.id,
-        name: habitacion.hotel.nombre,
-        city: habitacion.hotel.ciudad
-      } : null,
-      // Propiedades adicionales para la UI
-      isPopular: Math.random() > 0.7, // Asignar aleatoriamente o basado en ranking
-      isFavorite: false,
-      isNew: checkIfNew(habitacion.created_at),
-      // Disponibilidad (si viene en la respuesta)
-      disponibilidades: habitacion.disponibilidades || [],
-      ofertas: habitacion.ofertas || []
-    }));
-    
-  } catch (error) {
-    console.error('Error al cargar habitaciones:', error);
-    errorRooms.value = 'No se pudieron cargar las habitaciones';
-    
-    // Mantener algunos datos de fallback si hay error
-    rooms.value = getFallbackRooms();
-  } finally {
-    loadingRooms.value = false;
-  }
-}
-
-// Función para verificar si una habitación es nueva (creada en los últimos 30 días)
-function checkIfNew(createdAt) {
-  if (!createdAt) return false;
-  const created = new Date(createdAt);
-  const now = new Date();
-  const diffTime = Math.abs(now - created);
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  return diffDays <= 30;
-}
-
-// Datos de fallback en caso de error
-function getFallbackRooms() {
-  return [
-    {
-      id: 1,
-      name: 'Habitación Estándar',
-      image: '/images/room-standard.jpeg',
-      price: 89.00,
-      size: 25,
-      capacity: 2,
-      adults: 2,
-      children: 0,
-      bedType: 'Cama doble',
-      description: 'Habitación acogedora con todas las comodidades necesarias para una estancia agradable.',
-      amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
-      isPopular: true,
-      isFavorite: false,
-      isNew: false
-    }
-  ];
-}
 
 const heroSlides = [
   {
@@ -149,29 +54,29 @@ const heroSlides = [
 // Datos para la sección de testimonios
 const testimonials = [
   {
-    name: "Juan Pérez",
-    image: "/images/testimonial-juan.jpeg",
-    text: "Una experiencia inolvidable. El servicio fue excelente y las instalaciones de primera clase.",
+    name: "Sucursal 1",
+    image: "/images/WhatsApp Image 2025-05-30 at 19.46.20.jpeg",
+    text: "Dir: Villa Caluyo D #784 Entre Calle 5 y 6.",
     rating: 5
   },
   {
-    name: "María López",
-    image: "/images/testimonial-maria.jpg",
-    text: "El spa fue increíble, realmente me ayudó a relajarme. Definitivamente volveré.",
+    name: "Sucursal 2",
+    image: "/images/WhatsApp Image 2025-05-30 at 19.45.49.jpeg",
+    text: "Zona Cruce Villa Adela, Av. Ladislao Cabrera, calle 1 N.º 2094 .",
     rating: 4.5
   },
   {
-    name: "Carlos García",
-    image: "/images/testimonial-carlos.jpg",
-    text: "La comida en el restaurante fue espectacular. Sabores únicos y un ambiente acogedor.",
-    rating: 5
+    name: "Orlando Quispe (propietario)",
+    image: "/images/WhatsApp Image 2025-05-30 at 19.41.13.jpeg",
+    text: "comunicate con los numeros en pantalla 70165207-65138908.",
+    rating: 8
   }
 ];
 
 // Datos para la sección "Sobre nosotros"
-const aboutImage = "/images/about-us.jpg";
+const aboutImage = "/images/about.jpeg";
 const aboutTitle = "Acerca de nosotros";
-const aboutText = "En Hotel Paraíso, nos esforzamos por ofrecer una experiencia única y memorable para cada uno de nuestros huéspedes.";
+const aboutText = "En el HOSTAL BERNETT, ofrecemos un servicio de calidad, accesible y disponible las 24 horas en El Alto en nuestras dos sucursales con parqueo gratis, con atención respetuosa y culturalmente inclusiva, enfocada en el bienestar del huésped, y con proyección de crecimiento mediante nuevas sucursales.";
 const aboutValues = [
   { icon: "fa-solid fa-star", text: "Calidad excepcional" },
   { icon: "fa-solid fa-heart", text: "Atención personalizada" },
@@ -198,14 +103,4 @@ function goRegister() {
 function onSubscribe(email) {
   console.log(`Usuario suscrito con el correo: ${email}`);
 }
-
-// Método para refrescar habitaciones (útil para componentes padre)
-function refreshRooms() {
-  loadRooms();
-}
-
-// Exponer métodos para uso externo
-defineExpose({
-  refreshRooms
-});
 </script>

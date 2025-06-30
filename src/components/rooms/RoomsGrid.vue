@@ -51,8 +51,26 @@
           </div>
         </div>
         
+        <!-- Loading state -->
+        <div v-if="loading" class="text-center py-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando habitaciones...</span>
+          </div>
+          <p class="text-muted mt-3">Cargando habitaciones disponibles...</p>
+        </div>
+
+        <!-- Error state -->
+        <div v-else-if="error" class="alert alert-warning text-center">
+          <i class="bi bi-exclamation-triangle fs-2 mb-3"></i>
+          <h5>Error al cargar habitaciones</h5>
+          <p class="mb-3">{{ error }}</p>
+          <button class="btn btn-outline-primary" @click="loadRooms">
+            <i class="bi bi-arrow-clockwise me-2"></i>Reintentar
+          </button>
+        </div>
+        
         <!-- Grid de habitaciones -->
-        <div class="row g-4">
+        <div v-else-if="rooms.length > 0" class="row g-4">
           <div 
             v-for="room in filteredRooms" 
             :key="room.id"
@@ -66,9 +84,16 @@
             />
           </div>
         </div>
+
+        <!-- Empty state -->
+        <div v-else class="text-center py-5">
+          <i class="bi bi-house fs-1 text-muted mb-3"></i>
+          <h4>No hay habitaciones disponibles</h4>
+          <p class="text-muted">Actualmente no tenemos habitaciones para mostrar.</p>
+        </div>
         
         <!-- Mensaje cuando no hay resultados -->
-        <div v-if="filteredRooms.length === 0" class="text-center py-5">
+        <div v-if="!loading && !error && rooms.length > 0 && filteredRooms.length === 0" class="text-center py-5">
           <i class="bi bi-emoji-frown fs-1 text-muted mb-3"></i>
           <h4>No se encontraron habitaciones</h4>
           <p class="text-muted">Por favor, intenta con otros filtros.</p>
@@ -83,121 +108,102 @@
   <script setup>
   import { ref, computed, onMounted } from 'vue'
   import { useRouter } from 'vue-router'
+  import { habitacionService } from '@/services'
   import RoomCard from './RoomCard.vue'
   
-  const props = defineProps({
-    rooms: {
-      type: Array,
-      default: () => [
-        {
-          id: 1,
-          name: 'Habitación Estándar',
-          image: '/room-standard.jpg',
-          price: 89.00,
-          size: 25,
-          capacity: 2,
-          bedType: 'Cama doble',
-          description: 'Habitación acogedora con todas las comodidades necesarias para una estancia agradable. Incluye baño privado y vistas a la ciudad.',
-          amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
-          isPopular: true,
-          isFavorite: false
-        },
-        {
-          id: 2,
-          name: 'Habitación Deluxe',
-          image: '/room-deluxe.jpg',
-          price: 129.00,
-          size: 35,
-          capacity: 2,
-          bedType: 'Cama king',
-          description: 'Habitación espaciosa con vistas panorámicas. Equipada con minibar, escritorio y zona de estar. Perfecta para viajeros de negocios y placer.',
-          amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado'],
-          isPopular: false,
-          isFavorite: false
-        },
-        {
-          id: 3,
-          name: 'Suite Junior',
-          image: '/room-junior-suite.jpg',
-          price: 159.00,
-          size: 45,
-          capacity: 3,
-          bedType: 'Cama king + sofá cama',
-          description: 'Suite elegante con dormitorio y sala de estar separada. Ofrece un espacio perfecto para relajarse después de un día de turismo o negocios.',
-          amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado', 'Balcón'],
-          isNew: true,
-          isFavorite: false
-        },
-        {
-          id: 4,
-          name: 'Suite Ejecutiva',
-          image: '/room-executive-suite.jpg',
-          price: 219.00,
-          size: 60,
-          capacity: 4,
-          bedType: 'Cama king + 2 camas individuales',
-          description: 'Amplia suite con dormitorio separado, sala de estar y comedor. Ideal para familias o estadías prolongadas. Incluye servicio de mayordomo.',
-          amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Caja fuerte', 'Baño privado', 'Balcón', 'Vista al mar', 'Desayuno incluido', 'Servicio de habitaciones'],
-          isPopular: true,
-          isFavorite: false
-        },
-        {
-          id: 5,
-          name: 'Habitación Familiar',
-          image: '/room-family.jpg',
-          price: 189.00,
-          size: 50,
-          capacity: 4,
-          bedType: '2 camas dobles',
-          description: 'Habitación espaciosa diseñada para familias. Incluye zona de juegos para niños y todas las comodidades para una estancia confortable.',
-          amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Minibar', 'Baño privado', 'Parking'],
-          isNew: false,
-          isFavorite: false
-        },
-        {
-          id: 6,
-          name: 'Habitación Accesible',
-          image: '/room-accessible.jpg',
-          price: 89.00,
-          size: 30,
-          capacity: 2,
-          bedType: 'Cama doble',
-          description: 'Habitación diseñada para ofrecer accesibilidad total. Cuenta con baño adaptado y todas las facilidades para una estancia cómoda.',
-          amenities: ['WiFi', 'TV', 'Aire acondicionado', 'Baño adaptado', 'Parking'],
-          isNew: false,
-          isFavorite: false
-        }
-      ]
-    }
-  })
-  
   const router = useRouter()
+  
+  // Estado reactivo
+  const rooms = ref([])
+  const loading = ref(true)
+  const error = ref(null)
   const searchTerm = ref('')
   const selectedCapacity = ref('')
   const selectedAmenity = ref('')
   const sortOption = ref('popular')
   
+  // Cargar habitaciones al montar el componente
+  onMounted(async () => {
+    await loadRooms()
+  })
+  
+  // Función para cargar habitaciones
+  async function loadRooms() {
+    try {
+      loading.value = true
+      error.value = null
+      
+      const response = await habitacionService.getAllHabitaciones()
+      console.log('Datos de habitaciones recibidos:', response)
+      
+      // Transformar los datos de la API al formato esperado por el componente
+      rooms.value = response.map(habitacion => ({
+        id: habitacion.id,
+        name: habitacion.name,
+        image: habitacion.image || '/images/room-default.jpg',
+        price: parseFloat(habitacion.price),
+        size: parseFloat(habitacion.size || 25),
+        capacity: habitacion.capacity,
+        adults: habitacion.capacity,
+        children: 0,
+        bedType: habitacion.type,
+        description: habitacion.description || 'Habitación cómoda con todas las comodidades necesarias.',
+        amenities: habitacion.amenities || ['WiFi', 'TV', 'Aire acondicionado', 'Baño privado'],
+        status: habitacion.status,
+        hotel: habitacion.hotel ? {
+          id: habitacion.hotel.id,
+          name: habitacion.hotel.nombre,
+          city: habitacion.hotel.ciudad
+        } : null,
+        // Propiedades adicionales para la UI
+        isPopular: Math.random() > 0.7,
+        isFavorite: false,
+        isNew: checkIfNew(habitacion.created_at),
+        number: habitacion.number,
+        floor: habitacion.floor
+      }))
+      
+    } catch (err) {
+      console.error('Error al cargar habitaciones:', err)
+      error.value = err.message || 'No se pudieron cargar las habitaciones'
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  // Función para verificar si una habitación es nueva
+  function checkIfNew(createdAt) {
+    if (!createdAt) return false
+    const created = new Date(createdAt)
+    const now = new Date()
+    const diffTime = Math.abs(now - created)
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays <= 30
+  }
+  
   // Extraer opciones únicas para los filtros
   const capacityOptions = computed(() => {
-    const capacities = [...new Set(props.rooms.map(room => room.capacity))]
+    const capacities = [...new Set(rooms.value.map(room => room.capacity))]
     return capacities.sort((a, b) => a - b)
   })
   
   const amenityOptions = computed(() => {
-    const amenitiesList = props.rooms.flatMap(room => room.amenities)
+    const amenitiesList = rooms.value.flatMap(room => room.amenities)
     return [...new Set(amenitiesList)].sort()
   })
   
   // Filtrar y ordenar habitaciones
   const filteredRooms = computed(() => {
-    let result = [...props.rooms]
+    let result = [...rooms.value]
     
     // Aplicar filtro de búsqueda
     if (searchTerm.value) {
       const term = searchTerm.value.toLowerCase()
       result = result.filter(room => 
         room.name.toLowerCase().includes(term) || 
-        room.description.toLowerCase().includes(term)
+        room.description.toLowerCase().includes(term) ||
+        room.number.toLowerCase().includes(term) ||
+        room.bedType.toLowerCase().includes(term)
       )
     }
     
@@ -237,13 +243,17 @@
   
   // Funciones de manejo de eventos
   const handleFavorite = ({ roomId, isFavorite }) => {
-    // Aquí se implementaría la lógica para guardar los favoritos en el estado global o localStorage
+    // Encontrar la habitación y actualizar su estado de favorito
+    const room = rooms.value.find(r => r.id === roomId)
+    if (room) {
+      room.isFavorite = isFavorite
+    }
     console.log(`Habitación ${roomId} ${isFavorite ? 'añadida a' : 'eliminada de'} favoritos`)
   }
   
   const viewRoomDetails = (roomId) => {
     router.push({ name: 'room-detail', params: { id: roomId } })
-  }
+  } 
   
   const bookRoom = (roomId) => {
     router.push({ name: 'booking', query: { roomId } })
@@ -255,10 +265,10 @@
     selectedAmenity.value = ''
     sortOption.value = 'popular'
   }
-  
-  // Opcional: Puede agregarse una función para cargar las habitaciones desde una API
-  onMounted(() => {
-    // fetchRooms()
+
+  // Exponer función para refrescar desde componentes padre
+  defineExpose({
+    loadRooms
   })
   </script>
   

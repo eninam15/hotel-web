@@ -1,4 +1,3 @@
-<!-- src/components/admin/RoomFormModal.vue -->
 <template>
   <div 
     class="modal fade show d-block" 
@@ -24,7 +23,10 @@
         
         <form @submit.prevent="handleSubmit">
           <div class="modal-body">
-            <!-- Basic Information -->
+            <div v-if="errors.general" class="alert alert-danger">
+              {{ errors.general }}
+            </div>
+
             <div class="row g-3">
               <div class="col-md-6">
                 <label for="roomNumber" class="form-label">
@@ -41,7 +43,7 @@
                   :disabled="isSaving"
                 >
                 <div v-if="errors.number" class="invalid-feedback">
-                  {{ errors.number }}
+                  {{ Array.isArray(errors.number) ? errors.number[0] : errors.number }}
                 </div>
               </div>
               
@@ -60,7 +62,7 @@
                   :disabled="isSaving"
                 >
                 <div v-if="errors.name" class="invalid-feedback">
-                  {{ errors.name }}
+                  {{ Array.isArray(errors.name) ? errors.name[0] : errors.name }}
                 </div>
               </div>
               
@@ -82,7 +84,7 @@
                   </option>
                 </select>
                 <div v-if="errors.typeId" class="invalid-feedback">
-                  {{ errors.typeId }}
+                  {{ Array.isArray(errors.typeId) ? errors.typeId[0] : errors.typeId }}
                 </div>
               </div>
               
@@ -104,7 +106,7 @@
                   </option>
                 </select>
                 <div v-if="errors.floor" class="invalid-feedback">
-                  {{ errors.floor }}
+                  {{ Array.isArray(errors.floor) ? errors.floor[0] : errors.floor }}
                 </div>
               </div>
               
@@ -125,7 +127,7 @@
                   :disabled="isSaving"
                 >
                 <div v-if="errors.capacity" class="invalid-feedback">
-                  {{ errors.capacity }}
+                  {{ Array.isArray(errors.capacity) ? errors.capacity[0] : errors.capacity }}
                 </div>
               </div>
               
@@ -141,12 +143,13 @@
                   :class="{ 'is-invalid': errors.size }"
                   min="10"
                   max="500"
+                  step="0.1"
                   placeholder="Metros cuadrados"
                   required
                   :disabled="isSaving"
                 >
                 <div v-if="errors.size" class="invalid-feedback">
-                  {{ errors.size }}
+                  {{ Array.isArray(errors.size) ? errors.size[0] : errors.size }}
                 </div>
               </div>
               
@@ -167,7 +170,7 @@
                   :disabled="isSaving"
                 >
                 <div v-if="errors.price" class="invalid-feedback">
-                  {{ errors.price }}
+                  {{ Array.isArray(errors.price) ? errors.price[0] : errors.price }}
                 </div>
               </div>
               
@@ -189,23 +192,39 @@
                   <option value="cleaning">Limpieza</option>
                 </select>
                 <div v-if="errors.status" class="invalid-feedback">
-                  {{ errors.status }}
+                  {{ Array.isArray(errors.status) ? errors.status[0] : errors.status }}
                 </div>
               </div>
               
               <div class="col-md-6">
-                <label for="roomImage" class="form-label">URL de imagen</label>
+                <label for="roomImage" class="form-label">Imagen de la habitación</label>
+                <div class="input-group">
+                  <input 
+                    type="file"
+                    id="roomImageFile"
+                    ref="imageFileInput"
+                    @change="handleImageUpload"
+                    class="form-control"
+                    :class="{ 'is-invalid': errors.image }"
+                    accept="image/*"
+                    :disabled="isSaving"
+                  >
+                  <span class="input-group-text">
+                    <i class="bi bi-image"></i>
+                  </span>
+                </div>
+                <div class="form-text">O ingresa una URL de imagen:</div>
                 <input 
                   type="url" 
                   id="roomImage"
                   v-model="form.image" 
-                  class="form-control"
+                  class="form-control mt-1"
                   :class="{ 'is-invalid': errors.image }"
                   placeholder="https://ejemplo.com/imagen.jpg"
                   :disabled="isSaving"
                 >
                 <div v-if="errors.image" class="invalid-feedback">
-                  {{ errors.image }}
+                  {{ Array.isArray(errors.image) ? errors.image[0] : errors.image }}
                 </div>
               </div>
               
@@ -221,18 +240,17 @@
                   :disabled="isSaving"
                 ></textarea>
                 <div v-if="errors.description" class="invalid-feedback">
-                  {{ errors.description }}
+                  {{ Array.isArray(errors.description) ? errors.description[0] : errors.description }}
                 </div>
               </div>
             </div>
 
-            <!-- Amenities Section -->
             <div class="mt-4">
               <h6 class="mb-3">
                 <i class="bi bi-star me-2"></i>Servicios y comodidades
               </h6>
               <div class="row g-2">
-                <div class="col-md-6">
+                <div class="col-12 col-md-6">
                   <div class="input-group">
                     <input 
                       type="text" 
@@ -252,10 +270,10 @@
                     </button>
                   </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-12 col-md-6 text-md-end">
                   <button 
                     type="button" 
-                    class="btn btn-outline-primary btn-sm me-2" 
+                    class="btn btn-outline-primary btn-sm" 
                     @click="addCommonAmenities"
                     :disabled="isSaving"
                   >
@@ -289,7 +307,48 @@
               </div>
             </div>
 
-            <!-- Image Preview -->
+            <div class="mt-4" v-if="!isEditing">
+              <h6 class="mb-3">
+                <i class="bi bi-calendar-check me-2"></i>Disponibilidad inicial (opcional)
+              </h6>
+              <div class="row g-3">
+                <div class="col-md-4">
+                  <label for="fechaInicio" class="form-label">Fecha inicio</label>
+                  <input 
+                    type="date" 
+                    id="fechaInicio"
+                    v-model="form.disponibilidad.fecha_inicio" 
+                    class="form-control"
+                    :disabled="isSaving"
+                    :min="today"
+                  >
+                </div>
+                <div class="col-md-4">
+                  <label for="fechaFin" class="form-label">Fecha fin</label>
+                  <input 
+                    type="date" 
+                    id="fechaFin"
+                    v-model="form.disponibilidad.fecha_fin" 
+                    class="form-control"
+                    :disabled="isSaving"
+                    :min="form.disponibilidad.fecha_inicio || today"
+                  >
+                </div>
+                <div class="col-md-4">
+                  <label for="cantidadDisponible" class="form-label">Cantidad disponible</label>
+                  <input 
+                    type="number" 
+                    id="cantidadDisponible"
+                    v-model.number="form.disponibilidad.cantidad" 
+                    class="form-control"
+                    min="1"
+                    max="10"
+                    :disabled="isSaving"
+                  >
+                </div>
+              </div>
+            </div>
+
             <div v-if="form.image" class="mt-4">
               <h6 class="mb-3">
                 <i class="bi bi-image me-2"></i>Vista previa
@@ -333,6 +392,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue';
+import { habitacionService } from '@/services/habitacionService.js';
 
 // Props
 const props = defineProps({
@@ -351,16 +411,27 @@ const props = defineProps({
   isEditing: {
     type: Boolean,
     default: false
+  },
+  hotelId: {
+    type: Number,
+    default: 1 // Por defecto a 1, ajustar si el hotel_id es dinámico
   }
 });
 
 // Emits
-const emit = defineEmits(['close', 'save']);
+const emit = defineEmits(['close', 'success', 'error']); // Cambiado 'save' por 'success' y 'error'
 
 // State
 const isSaving = ref(false);
 const newAmenity = ref('');
 const errors = ref({});
+const imageFileInput = ref(null);
+const selectedImageFile = ref(null);
+
+// Computed
+const today = computed(() => {
+  return new Date().toISOString().split('T')[0];
+});
 
 // Form data
 const form = ref({
@@ -374,7 +445,12 @@ const form = ref({
   status: 'available',
   image: '',
   description: '',
-  amenities: []
+  amenities: [],
+  disponibilidad: {
+    fecha_inicio: '',
+    fecha_fin: '',
+    cantidad: 1
+  }
 });
 
 // Common amenities for quick adding
@@ -418,16 +494,21 @@ watch(() => props.room, (newRoom) => {
     form.value = {
       id: newRoom.id,
       number: newRoom.number || '',
-      name: newRoom.name || '',
-      typeId: newRoom.typeId || '',
+      name: newRoom.name || newRoom.nombre || '',
+      typeId: newRoom.typeId || newRoom.type_id || '',
       floor: newRoom.floor || '',
-      capacity: newRoom.capacity || 1,
+      capacity: newRoom.capacity || newRoom.nro_adultos || 1,
       size: newRoom.size || 25,
-      price: newRoom.price || 0,
+      price: newRoom.price || newRoom.precio || 0,
       status: newRoom.status || 'available',
       image: newRoom.image || '',
-      description: newRoom.description || '',
-      amenities: [...(newRoom.amenities || [])]
+      description: newRoom.description || newRoom.descripcion || '',
+      amenities: [...(newRoom.amenities || [])],
+      disponibilidad: { // Reset disponibilidad for editing as it's for initial creation
+        fecha_inicio: '',
+        fecha_fin: '',
+        cantidad: 1
+      }
     };
   } else {
     // Reset form for new room
@@ -449,10 +530,14 @@ watch(() => form.value.typeId, (newTypeId) => {
         1: 89, // Estándar
         2: 129, // Deluxe
         3: 159, // Suite Junior
-        4: 219  // Suite Ejecutiva
+        4: 219, // Suite Ejecutiva
+        5: 299  // Suite Presidencial (si lo tuvieras)
       };
       form.value.price = defaultPrices[newTypeId] || 89;
     }
+    
+    // Update type name for the form object
+    form.value.type = selectedRoomType.value.name;
   }
 });
 
@@ -469,8 +554,17 @@ function resetForm() {
     status: 'available',
     image: '',
     description: '',
-    amenities: []
+    amenities: [],
+    disponibilidad: {
+      fecha_inicio: '',
+      fecha_fin: '',
+      cantidad: 1
+    }
   };
+  selectedImageFile.value = null;
+  if (imageFileInput.value) {
+    imageFileInput.value.value = '';
+  }
 }
 
 function validateForm() {
@@ -505,9 +599,19 @@ function validateForm() {
     errors.value.price = 'El precio no puede ser negativo';
   }
   
-  // URL validation for image
-  if (form.value.image && !isValidUrl(form.value.image)) {
+  // URL validation for image if no file is selected
+  if (!selectedImageFile.value && form.value.image && !isValidUrl(form.value.image)) {
     errors.value.image = 'La URL de la imagen no es válida';
+  }
+  
+  // Disponibilidad validation
+  if (!props.isEditing && form.value.disponibilidad.fecha_inicio && form.value.disponibilidad.fecha_fin) {
+    if (form.value.disponibilidad.fecha_fin < form.value.disponibilidad.fecha_inicio) {
+      errors.value.general = 'La fecha de fin debe ser posterior a la fecha de inicio';
+    }
+    if (form.value.disponibilidad.cantidad < 1) {
+      errors.value.general = 'La cantidad disponible debe ser al menos 1';
+    }
   }
   
   return Object.keys(errors.value).length === 0;
@@ -542,8 +646,31 @@ function addCommonAmenities() {
   form.value.amenities.push(...amenitiesToAdd);
 }
 
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (file) {
+    selectedImageFile.value = file;
+    form.value.image = ''; // Clear URL input if a file is selected
+    
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      form.value.image = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  } else {
+    selectedImageFile.value = null;
+  }
+}
+
 function handleImageError(event) {
-  errors.value.image = 'No se pudo cargar la imagen de la URL proporcionada';
+  // Solo actualiza la fuente si la imagen actual es la URL y falló, no si es un archivo local temporal
+  if (form.value.image && !selectedImageFile.value) {
+    event.target.src = '/images/room-placeholder.jpg';
+    errors.value.image = 'No se pudo cargar la imagen de la URL proporcionada';
+  } else if (!form.value.image && !selectedImageFile.value) {
+    event.target.src = '/images/room-placeholder.jpg';
+  }
 }
 
 async function handleSubmit() {
@@ -552,20 +679,56 @@ async function handleSubmit() {
   }
   
   isSaving.value = true;
-  
+  errors.value = {}; // Clear previous errors
+
   try {
-    // Prepare data
+    // Prepare data based on the backend service expectations
     const roomData = {
-      ...form.value,
-      type: selectedRoomType.value?.name || ''
+      hotel_id: props.hotelId,
+      number: form.value.number,
+      name: form.value.name,
+      typeId: form.value.typeId,
+      type: selectedRoomType.value?.name || form.value.type, // Asegurarse de enviar el nombre del tipo
+      floor: form.value.floor,
+      capacity: form.value.capacity,
+      size: form.value.size,
+      price: form.value.price,
+      status: form.value.status,
+      image: form.value.image, // URL o base64 temporal si es file
+      description: form.value.description,
+      amenities: form.value.amenities
     };
+
+    // Add initial availability for new rooms if specified
+    if (!props.isEditing && 
+        form.value.disponibilidad.fecha_inicio && 
+        form.value.disponibilidad.fecha_fin && 
+        form.value.disponibilidad.cantidad) {
+      roomData.disponibilidad = form.value.disponibilidad;
+    }
+
+    let savedRoom;
     
-    // Emit save event
-    emit('save', roomData);
+    if (props.isEditing) {
+      savedRoom = await habitacionService.updateHabitacion(form.value.id, roomData);
+    } else {
+      savedRoom = await habitacionService.createHabitacion(roomData, selectedImageFile.value);
+    }
+
+    // Emit success event to parent
+    emit('success', {
+      message: props.isEditing ? `Habitación ${form.value.number} actualizada exitosamente` : `Habitación ${form.value.number} creada exitosamente`,
+      room: savedRoom.habitacion || savedRoom // Asegúrate de que `room` contenga los datos actualizados/creados
+    });
     
   } catch (error) {
     console.error('Error saving room:', error);
-    errors.value.general = 'Error al guardar la habitación. Por favor, intenta de nuevo.';
+    if (error.errors) { // Backend validation errors
+      errors.value = error.errors;
+    } else {
+      errors.value.general = error.message || 'Error al guardar la habitación. Por favor, intenta de nuevo.';
+    }
+    emit('error', error);
   } finally {
     isSaving.value = false;
   }
@@ -573,12 +736,14 @@ async function handleSubmit() {
 
 function closeModal() {
   if (!isSaving.value) {
+    resetForm();
     emit('close');
   }
 }
 </script>
 
 <style scoped>
+/* Tu estilo existente */
 .modal.show {
   display: block;
 }
@@ -601,6 +766,10 @@ function closeModal() {
 
 .text-danger {
   font-weight: 600;
+}
+
+.alert {
+  margin-bottom: 1rem;
 }
 
 @media (max-width: 768px) {

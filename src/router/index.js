@@ -29,7 +29,7 @@ const routes = [
     children: [
       { path: '', name: 'home', component: Home },
       { path: 'room/:id', name: 'room-detail', component: RoomDetail },
-      //{ path: 'rooms', name: 'rooms', component: () => import('@/views/public/RoomsList.vue') },
+      { path: 'booking', name: 'booking', component: Booking },
       //{ path: 'about', name: 'about', component: () => import('@/views/public/About.vue') },
       //{ path: 'contact', name: 'contact', component: () => import('@/views/public/Contact.vue') },
     ]

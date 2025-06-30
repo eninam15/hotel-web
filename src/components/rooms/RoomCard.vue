@@ -1,10 +1,15 @@
 <template>
     <div class="room-card h-100">
       <div class="room-image position-relative">
-        <img :src="room.image" class="img-fluid" :alt="room.name" />
+        <img :src="roomImage" class="img-fluid" :alt="room.name" @error="handleImageError" />
         <div class="room-tags">
           <span v-if="room.isNew" class="badge bg-success me-2">Nuevo</span>
           <span v-if="room.isPopular" class="badge bg-danger">Popular</span>
+          <span v-if="room.status && room.status !== 'available'" 
+                class="badge me-2" 
+                :class="getStatusBadgeClass(room.status)">
+            {{ getStatusText(room.status) }}
+          </span>
         </div>
         <button 
           class="favorite-btn" 
@@ -18,7 +23,15 @@
       
       <div class="room-info p-3">
         <div class="d-flex justify-content-between align-items-start mb-2">
-          <h5 class="fw-bold mb-0">{{ room.name }}</h5>
+          <div>
+            <h5 class="fw-bold mb-0">{{ room.name }}</h5>
+            <small class="text-muted" v-if="room.number">
+              <i class="bi bi-door-closed me-1"></i>Habitación {{ room.number }}
+              <span v-if="room.floor" class="ms-2">
+                <i class="bi bi-building me-1"></i>Piso {{ room.floor }}
+              </span>
+            </small>
+          </div>
           <div class="price-tag">
             <span class="fs-5 fw-bold text-primary">{{ formatPrice(room.price) }}</span>
             <span class="text-muted small">/noche</span>
@@ -26,16 +39,29 @@
         </div>
         
         <div class="room-features mb-3">
-          <span class="room-feature"><i class="bi bi-rulers"></i> {{ room.size }}m²</span>
-          <span class="room-feature"><i class="bi bi-people-fill"></i> {{ room.capacity }} personas</span>
-          <span class="room-feature"><i class="bi bi-door-open"></i> {{ room.bedType }}</span>
+          <span class="room-feature">
+            <i class="bi bi-rulers"></i> {{ room.size }}m²
+          </span>
+          <span class="room-feature">
+            <i class="bi bi-people-fill"></i> {{ room.capacity }} {{ room.capacity === 1 ? 'persona' : 'personas' }}
+          </span>
+          <span class="room-feature">
+            <i class="bi bi-door-open"></i> {{ room.bedType }}
+          </span>
+        </div>
+
+        <!-- Hotel info if available -->
+        <div v-if="room.hotel" class="hotel-info mb-3">
+          <small class="text-muted">
+            <i class="bi bi-building me-1"></i>{{ room.hotel.name }} - {{ room.hotel.city }}
+          </small>
         </div>
         
         <p class="room-description text-muted mb-3">{{ truncateText(room.description, 100) }}</p>
         
         <div class="room-amenities mb-3">
           <span 
-            v-for="(amenity, index) in room.amenities.slice(0, 4)" 
+            v-for="(amenity, index) in visibleAmenities" 
             :key="index" 
             class="amenity-badge"
           >
@@ -56,8 +82,10 @@
           <button 
             class="btn btn-primary"
             @click="$emit('book', room.id)"
+            :disabled="room.status !== 'available'"
           >
-            comprar ahora <i class="bi bi-calendar-check ms-1"></i>
+            {{ room.status === 'available' ? 'Reservar' : 'No disponible' }}
+            <i class="bi bi-calendar-check ms-1" v-if="room.status === 'available'"></i>
           </button>
         </div>
       </div>
@@ -65,7 +93,7 @@
   </template>
   
   <script setup>
-  import { ref, defineProps, defineEmits } from 'vue'
+  import { ref, computed, defineProps, defineEmits } from 'vue'
   
   const props = defineProps({
     room: {
@@ -77,7 +105,21 @@
   const emit = defineEmits(['favorite', 'details', 'book'])
   
   const isFavorite = ref(props.room.isFavorite || false)
+  const imageError = ref(false)
   
+  // Computed
+  const roomImage = computed(() => {
+    if (imageError.value) {
+      return '/images/room-default.jpg'
+    }
+    return props.room.image || '/images/room-default.jpg'
+  })
+
+  const visibleAmenities = computed(() => {
+    return props.room.amenities?.slice(0, 4) || []
+  })
+  
+  // Methods
   const toggleFavorite = () => {
     isFavorite.value = !isFavorite.value
     emit('favorite', {
@@ -85,28 +127,63 @@
       isFavorite: isFavorite.value
     })
   }
+
+  const handleImageError = () => {
+    imageError.value = true
+  }
   
   const truncateText = (text, maxLength) => {
+    if (!text) return ''
     if (text.length <= maxLength) return text
     return text.slice(0, maxLength) + '...'
   }
   
   const formatPrice = (price) => {
-    return `€${price.toFixed(2)}`
+    return new Intl.NumberFormat('es-BO', {
+      style: 'currency',
+      currency: 'BOB'
+    }).format(price)
+  }
+
+  const getStatusBadgeClass = (status) => {
+    const classes = {
+      available: 'bg-success',
+      occupied: 'bg-danger',
+      maintenance: 'bg-warning text-dark',
+      cleaning: 'bg-info'
+    }
+    return classes[status] || 'bg-secondary'
+  }
+
+  const getStatusText = (status) => {
+    const texts = {
+      available: 'Disponible',
+      occupied: 'Ocupada',
+      maintenance: 'Mantenimiento',
+      cleaning: 'Limpieza'
+    }
+    return texts[status] || status
   }
   
   const getAmenityIcon = (amenity) => {
     const icons = {
+      'WiFi gratuito': 'bi-wifi',
       'WiFi': 'bi-wifi',
+      'TV por cable': 'bi-tv',
       'TV': 'bi-tv',
       'Aire acondicionado': 'bi-thermometer-snow',
       'Minibar': 'bi-cup-straw',
       'Caja fuerte': 'bi-safe',
       'Baño privado': 'bi-droplet-fill',
+      'Secador de pelo': 'bi-wind',
+      'Teléfono': 'bi-telephone',
+      'Servicio de habitaciones': 'bi-bell',
       'Balcón': 'bi-door-open-fill',
       'Vista al mar': 'bi-water',
+      'Jacuzzi': 'bi-droplet-half',
+      'Escritorio': 'bi-desk',
+      'Cafetera': 'bi-cup-hot',
       'Desayuno incluido': 'bi-cup-hot',
-      'Servicio de habitaciones': 'bi-bell',
       'Parking': 'bi-p-square-fill'
     }
     
@@ -190,6 +267,12 @@
   
   .room-feature i {
     margin-right: 3px;
+  }
+  
+  .hotel-info {
+    background-color: #f8f9fa;
+    padding: 0.5rem;
+    border-radius: 8px;
   }
   
   .room-amenities {
