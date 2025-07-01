@@ -1,87 +1,93 @@
-// src/store/auth.js
 import { defineStore } from 'pinia';
-import api from '@/services/api';
+import { authService } from '@/services/authService';
+import api from '@/services/api'; // Importa la instancia de Axios
+import router from '@/router'; // Importa el router para redireccionar
+
+/**
+ * Función auxiliar para obtener datos del localStorage de forma segura.
+ */
+const getInitialState = () => {
+  try {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    return { token: token || null, user: user || null };
+  } catch (error) {
+    console.error("Error al leer localStorage:", error);
+    // En caso de datos corruptos, limpia el storage.
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    return { token: null, user: null };
+  }
+};
 
 export const useAuthStore = defineStore('auth', {
-  state: () => {
-    let user = null;
-    try {
-      // Intentar parsear el usuario desde localStorage al inicio
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        user = JSON.parse(storedUser);
-      }
-    } catch (e) {
-      console.error("Error parsing user from localStorage:", e);
-      // Limpiar si hay un error de parseo (datos corruptos)
-      localStorage.removeItem('user');
-      localStorage.removeItem('token');
-    }
+  state: () => getInitialState(),
 
-    return {
-      token: localStorage.getItem('token') || '',
-      user: user // Se inicializa con el usuario recuperado o null
-    };
-  },
   getters: {
-    isLogged: s => !!s.token, // `!!s.token` es suficiente para verificar si hay un token
-    // `s.user?.roles?.includes('admin')` es correcto, pero asegúrate que `roles` es un array
-    isAdmin: s => s.user?.roles && s.user.roles.includes('admin')
+    /**
+     * Verifica si el usuario está autenticado.
+     * @returns {boolean}
+     */
+    isLoggedIn: (state) => !!state.token && !!state.user,
+
+    /**
+     * Verifica si el usuario es administrador.
+     * @returns {boolean}
+     */
+    isAdmin: (state) => state.user?.roles?.includes('admin'),
   },
+
   actions: {
-    async login(payload) {
-      console.log("Payload de login:", payload);
+    /**
+     * Maneja el flujo de registro de usuario.
+     * Después de un registro exitoso, intenta hacer login automáticamente.
+     * @param {object} userData - Datos del formulario de registro.
+     */
+    async register(userData) {
       try {
-        const { data } = await api.post('/login', payload);
+        await authService.register(userData);
+        // Después de un registro exitoso, se hace login para obtener el token.
+        await this.login({ email: userData.email, password: userData.password });
+      } catch (error) {
+        console.error('Error en el registro:', error);
+        throw error; // Lanza el error para que el componente lo maneje
+      }
+    },
+
+    /**
+     * Maneja el flujo de inicio de sesión.
+     * @param {object} credentials - Email y contraseña.
+     */
+    async login(credentials) {
+      try {
+        const data = await authService.login(credentials);
         this.token = data.token;
-        this.user = data.user; // Asigna el objeto user completo
-        
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user)); // <--- ¡Añadido!
-        
-        api.defaults.headers.common.Authorization = `Bearer ${data.token}`;
+        this.user = data.user;
       } catch (error) {
-        // Mejor manejo de errores: re-lanzar para que el componente lo capture
-        throw error; 
-      }
-    },
-    async register(payload) {
-      try {
-        await api.post('/register', payload);
-        // Después de registrarse, automáticamente loguear al usuario
-        await this.login({ email: payload.email, password: payload.password });
-      } catch (error) {
+        console.error('Error en el inicio de sesión:', error);
+        this.logout(); // Limpia cualquier estado parcial
         throw error;
       }
     },
-    async fetchUser() {
-      // Esta acción es útil para refrescar los datos del usuario si cambian en el backend,
-      // pero ya no es estrictamente necesaria para que la Navbar funcione después de un refresh.
-      // Podrías llamarla en un `onMounted` de tu componente `App.vue` si quieres tener
-      // los datos del usuario siempre actualizados al cargar la app.
-      try {
-        const { data } = await api.get('/user');
-        this.user = data;
-        localStorage.setItem('user', JSON.stringify(data)); // Actualizar user en localStorage también
-      } catch (error) {
-        // Si fetchUser falla (ej. token expirado), considera cerrar sesión
-        console.error("Error fetching user data:", error);
-        this.logout(); // Forzar cierre de sesión si no se puede obtener el usuario
-        throw error;
-      }
+
+    /**
+     * Cierra la sesión del usuario.
+     */
+    async logout() {
+      await authService.logout();
+      this.token = null;
+      this.user = null;
+      // Redirige a la página de login para una mejor experiencia.
+      router.push({ name: 'login' });
     },
-    logout() {
-      this.token = '';
-      this.user = null; // Reinicia el usuario a null
-      localStorage.removeItem('token');
-      localStorage.removeItem('user'); // <--- ¡Añadido!
-      delete api.defaults.headers.common.Authorization; // Elimina el encabezado de autorización
-    },
-    // Inicializa el token de autorización en el API al cargar la app
-    // Esto es crucial para que las peticiones subsiguientes estén autenticadas
+
+    /**
+     * Inicializa el estado de autenticación al cargar la aplicación.
+     * Es crucial para mantener al usuario logueado entre recargas de página.
+     */
     initializeAuth() {
       if (this.token) {
-        api.defaults.headers.common.Authorization = `Bearer ${this.token}`;
+        api.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
       }
     }
   }
